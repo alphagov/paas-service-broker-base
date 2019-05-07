@@ -7,8 +7,8 @@ image_resource:
     tag: 1.11.5-stretch
 inputs:
   - name: repo
-env:
-  GO111MODULE=on
+params:
+  GO111MODULE: 'on'
 run:
   dir: repo
   path: make

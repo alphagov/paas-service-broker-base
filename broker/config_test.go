@@ -21,7 +21,8 @@ var _ = Describe("Config", func() {
 					"basic_auth_password":"1234",
 					"port": "8080",
 					"log_level": "debug",
-					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]}
+					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]},
+					"locket": {"address": "my.locker.server"}
 				}
 			`
 			_, err := NewConfig(strings.NewReader(configSource))
@@ -34,7 +35,8 @@ var _ = Describe("Config", func() {
 					"basic_auth_username":"username",
 					"port": "8080",
 					"log_level": "debug",
-					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]}
+					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]},
+					"locket": {"address": "my.locker.server"}
 				}
 			`
 			_, err := NewConfig(strings.NewReader(configSource))
@@ -47,11 +49,26 @@ var _ = Describe("Config", func() {
 					"basic_auth_username":"username",
 					"basic_auth_password":"1234",
 					"port": "8080",
-					"log_level": "debug"
+					"log_level": "debug",
+					"locket": {"address": "my.locker.server"}
 				}
 			`
 			_, err := NewConfig(strings.NewReader(configSource))
 			Expect(err).To(MatchError("Config error: catalog required"))
+		})
+
+		It("requires a locket address", func() {
+			configSource = `
+				{
+					"basic_auth_username":"username",
+					"basic_auth_password":"1234",
+					"port": "8080",
+					"log_level": "debug",
+					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]}
+				}
+			`
+			_, err := NewConfig(strings.NewReader(configSource))
+			Expect(err).To(MatchError("Config error: locket address required"))
 		})
 	})
 
@@ -64,7 +81,8 @@ var _ = Describe("Config", func() {
 					"basic_auth_password":"1234",
 					"port": "8080",
 					"log_level": "debug",
-					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]}
+					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]},
+					"locket": {"address": "my.locker.server"}
 				}
 			`
 			config, err := NewConfig(strings.NewReader(configSource))
@@ -82,7 +100,8 @@ var _ = Describe("Config", func() {
 					"basic_auth_password":"1234",
 					"port": "8080",
 					"log_level": "debuggery",
-					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]}
+					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]},
+					"locket": {"address": "my.locker.server"}
 				}
 			`
 			_, err := NewConfig(strings.NewReader(configSource))
@@ -97,7 +116,8 @@ var _ = Describe("Config", func() {
 					"basic_auth_username":"username",
 					"basic_auth_password":"1234",
 					"log_level": "debug",
-					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]}
+					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]},
+					"locket": {"address": "my.locker.server"}
 				}
 			`
 			config, err := NewConfig(strings.NewReader(configSource))
@@ -111,7 +131,8 @@ var _ = Describe("Config", func() {
 					"basic_auth_username":"username",
 					"basic_auth_password":"1234",
 					"port": "8080",
-					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]}
+					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]},
+					"locket": {"address": "my.locker.server"}
 				}
 			`
 			config, err := NewConfig(strings.NewReader(configSource))
@@ -126,7 +147,8 @@ var _ = Describe("Config", func() {
 				{
 					"basic_auth_username":"username",
 					"basic_auth_password":"1234",
-					"catalog": {"services": []}
+					"catalog": {"services": []},
+					"locket": {"address": "my.locker.server"}
 				}
 			`
 			_, err := NewConfig(strings.NewReader(configSource))
@@ -141,7 +163,8 @@ var _ = Describe("Config", func() {
 					"catalog": {"services": [
 						{"name": "service1", "plans": [{"name": "plan1"}]},
 						{"name": "service2", "plans": []}
-					]}
+					]},
+					"locket": {"address": "my.locker.server"}
 				}
 			`
 			_, err := NewConfig(strings.NewReader(configSource))

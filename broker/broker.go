@@ -5,23 +5,59 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/locket"
+	locket_models "code.cloudfoundry.org/locket/models"
 	"errors"
 	"github.com/alphagov/paas-service-broker-base/provider"
 	"github.com/pivotal-cf/brokerapi"
 )
 
 type Broker struct {
-	config   Config
-	Provider provider.ServiceProvider
-	logger   lager.Logger
+	config       Config
+	Provider     provider.ServiceProvider
+	logger       lager.Logger
+	locketClient locket_models.LocketClient
 }
 
-func New(config Config, serviceProvider provider.ServiceProvider, logger lager.Logger) *Broker {
-	return &Broker{
-		config:   config,
-		Provider: serviceProvider,
-		logger:   logger,
+func New(config Config, serviceProvider provider.ServiceProvider, logger lager.Logger) (*Broker, error) {
+
+	locketSession := logger.Session("locket")
+	var (
+		err          error
+		locketClient locket_models.LocketClient
+	)
+
+	if config.API.Locket.SkipVerify {
+		locketClient, err = locket.NewClientSkipCertVerify(
+			locketSession,
+			locket.ClientLocketConfig{
+				LocketAddress:        config.API.Locket.Address,
+				LocketCACertFile:     config.API.Locket.CACertFile,
+				LocketClientCertFile: config.API.Locket.ClientCertFile,
+				LocketClientKeyFile:  config.API.Locket.ClientKeyFile,
+			},
+		)
+	} else {
+		locketClient, err = locket.NewClient(
+			locketSession,
+			locket.ClientLocketConfig{
+				LocketAddress:        config.API.Locket.Address,
+				LocketCACertFile:     config.API.Locket.CACertFile,
+				LocketClientCertFile: config.API.Locket.ClientCertFile,
+				LocketClientKeyFile:  config.API.Locket.ClientKeyFile,
+			},
+		)
 	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &Broker{
+		config:       config,
+		Provider:     serviceProvider,
+		logger:       logger,
+		locketClient: locketClient,
+	}, nil
 }
 
 func (b *Broker) Services(ctx context.Context) ([]brokerapi.Service, error) {

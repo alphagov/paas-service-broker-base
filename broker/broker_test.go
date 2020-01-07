@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"path"
 
 	"code.cloudfoundry.org/lager"
 	. "github.com/alphagov/paas-service-broker-base/broker"
@@ -54,6 +55,15 @@ var _ = Describe("Broker", func() {
 					Services: []brokerapi.Service{service1},
 				},
 			},
+			API: API{
+				Locket: LocketConfig{
+					Address:        locketAddress,
+					CACertFile:     path.Join(fixturesPath, "locket-server.cert.pem"),
+					ClientCertFile: path.Join(fixturesPath, "locket-client.cert.pem"),
+					ClientKeyFile:  path.Join(fixturesPath, "locket-client.key.pem"),
+					SkipVerify:     true,
+				},
+			},
 		}
 	})
 
@@ -73,7 +83,8 @@ var _ = Describe("Broker", func() {
 			logger := lager.NewLogger("broker")
 			log := gbytes.NewBuffer()
 			logger.RegisterSink(lager.NewWriterSink(log, lager.DEBUG))
-			b := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			b, err := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Provision(context.Background(), instanceID, validProvisionDetails, true)
 
@@ -81,10 +92,11 @@ var _ = Describe("Broker", func() {
 		})
 
 		It("errors if async isn't allowed", func() {
-			b := New(validConfig, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			b, err := New(validConfig, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 			asyncAllowed := false
 
-			_, err := b.Provision(context.Background(), instanceID, validProvisionDetails, asyncAllowed)
+			_, err = b.Provision(context.Background(), instanceID, validProvisionDetails, asyncAllowed)
 
 			Expect(err).To(Equal(brokerapi.ErrAsyncRequired))
 		})
@@ -92,9 +104,10 @@ var _ = Describe("Broker", func() {
 		It("errors if the service is not in the catalog", func() {
 			config := validConfig
 			config.Catalog = Catalog{Catalog: brokerapi.CatalogResponse{}}
-			b := New(config, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			b, err := New(config, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
-			_, err := b.Provision(context.Background(), instanceID, validProvisionDetails, true)
+			_, err = b.Provision(context.Background(), instanceID, validProvisionDetails, true)
 
 			Expect(err).To(MatchError("Error: service " + service1.ID + " not found in the catalog"))
 		})
@@ -102,16 +115,18 @@ var _ = Describe("Broker", func() {
 		It("errors if the plan is not in the catalog", func() {
 			config := validConfig
 			config.Catalog.Catalog.Services[0].Plans = []brokerapi.ServicePlan{}
-			b := New(config, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			b, err := New(config, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
-			_, err := b.Provision(context.Background(), instanceID, validProvisionDetails, true)
+			_, err = b.Provision(context.Background(), instanceID, validProvisionDetails, true)
 
 			Expect(err).To(MatchError("Error: plan " + plan1.ID + " not found in service " + service1.ID))
 		})
 
 		It("sets a deadline by which the provision request should complete", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Provision(context.Background(), instanceID, validProvisionDetails, true)
 
@@ -125,7 +140,8 @@ var _ = Describe("Broker", func() {
 
 		It("passes the correct data to the Provider", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Provision(context.Background(), instanceID, validProvisionDetails, true)
 
@@ -144,10 +160,11 @@ var _ = Describe("Broker", func() {
 
 		It("errors if provisioning fails", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 			fakeProvider.ProvisionReturns("", "", true, errors.New("ERROR PROVISIONING"))
 
-			_, err := b.Provision(context.Background(), instanceID, validProvisionDetails, true)
+			_, err = b.Provision(context.Background(), instanceID, validProvisionDetails, true)
 
 			Expect(err).To(MatchError("ERROR PROVISIONING"))
 		})
@@ -156,7 +173,8 @@ var _ = Describe("Broker", func() {
 			logger := lager.NewLogger("broker")
 			log := gbytes.NewBuffer()
 			logger.RegisterSink(lager.NewWriterSink(log, lager.DEBUG))
-			b := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			b, err := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Provision(context.Background(), instanceID, validProvisionDetails, true)
 
@@ -165,7 +183,8 @@ var _ = Describe("Broker", func() {
 
 		It("returns the provisioned service spec", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 			fakeProvider.ProvisionReturns("dashboard URL", "operation data", true, nil)
 
 			Expect(b.Provision(context.Background(), instanceID, validProvisionDetails, true)).
@@ -191,7 +210,8 @@ var _ = Describe("Broker", func() {
 			logger := lager.NewLogger("broker")
 			log := gbytes.NewBuffer()
 			logger.RegisterSink(lager.NewWriterSink(log, lager.DEBUG))
-			b := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			b, err := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, true)
 
@@ -199,10 +219,11 @@ var _ = Describe("Broker", func() {
 		})
 
 		It("errors if async isn't allowed", func() {
-			b := New(validConfig, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			b, err := New(validConfig, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 			asyncAllowed := false
 
-			_, err := b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, asyncAllowed)
+			_, err = b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, asyncAllowed)
 
 			Expect(err).To(Equal(brokerapi.ErrAsyncRequired))
 		})
@@ -210,9 +231,10 @@ var _ = Describe("Broker", func() {
 		It("errors if the service is not in the catalog", func() {
 			config := validConfig
 			config.Catalog = Catalog{Catalog: brokerapi.CatalogResponse{}}
-			b := New(config, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			b, err := New(config, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
-			_, err := b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, true)
+			_, err = b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, true)
 
 			Expect(err).To(MatchError("Error: service " + service1.ID + " not found in the catalog"))
 		})
@@ -220,16 +242,18 @@ var _ = Describe("Broker", func() {
 		It("errors if the plan is not in the catalog", func() {
 			config := validConfig
 			config.Catalog.Catalog.Services[0].Plans = []brokerapi.ServicePlan{}
-			b := New(config, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			b, err := New(config, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
-			_, err := b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, true)
+			_, err = b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, true)
 
 			Expect(err).To(MatchError("Error: plan " + plan1.ID + " not found in service " + service1.ID))
 		})
 
 		It("sets a deadline by which the deprovision request should complete", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, true)
 
@@ -243,7 +267,8 @@ var _ = Describe("Broker", func() {
 
 		It("passes the correct data to the Provider", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, true)
 
@@ -262,10 +287,11 @@ var _ = Describe("Broker", func() {
 
 		It("errors if deprovisioning fails", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 			fakeProvider.DeprovisionReturns("", true, errors.New("ERROR DEPROVISIONING"))
 
-			_, err := b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, true)
+			_, err = b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, true)
 
 			Expect(err).To(MatchError("ERROR DEPROVISIONING"))
 		})
@@ -274,7 +300,8 @@ var _ = Describe("Broker", func() {
 			logger := lager.NewLogger("broker")
 			log := gbytes.NewBuffer()
 			logger.RegisterSink(lager.NewWriterSink(log, lager.DEBUG))
-			b := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			b, err := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, true)
 
@@ -283,7 +310,8 @@ var _ = Describe("Broker", func() {
 
 		It("returns the deprovisioned service spec", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 			fakeProvider.DeprovisionReturns("operation data", true, nil)
 
 			Expect(b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, true)).
@@ -320,7 +348,8 @@ var _ = Describe("Broker", func() {
 			logger := lager.NewLogger("broker")
 			log := gbytes.NewBuffer()
 			logger.RegisterSink(lager.NewWriterSink(log, lager.DEBUG))
-			b := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			b, err := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Bind(context.Background(), instanceID, bindingID, validBindDetails, true)
 
@@ -329,7 +358,8 @@ var _ = Describe("Broker", func() {
 
 		It("sets a deadline by which the binding request should complete", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Bind(context.Background(), instanceID, bindingID, validBindDetails, true)
 
@@ -343,7 +373,8 @@ var _ = Describe("Broker", func() {
 
 		It("passes the correct data to the Provider", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Bind(context.Background(), instanceID, bindingID, validBindDetails, true)
 
@@ -362,10 +393,11 @@ var _ = Describe("Broker", func() {
 
 		It("errors if binding fails", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 			fakeProvider.BindReturns(brokerapi.Binding{}, errors.New("ERROR BINDING"))
 
-			_, err := b.Bind(context.Background(), instanceID, bindingID, validBindDetails, true)
+			_, err = b.Bind(context.Background(), instanceID, bindingID, validBindDetails, true)
 
 			Expect(err).To(MatchError("ERROR BINDING"))
 		})
@@ -374,7 +406,8 @@ var _ = Describe("Broker", func() {
 			logger := lager.NewLogger("broker")
 			log := gbytes.NewBuffer()
 			logger.RegisterSink(lager.NewWriterSink(log, lager.DEBUG))
-			b := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			b, err := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Bind(context.Background(), instanceID, bindingID, validBindDetails, true)
 
@@ -383,7 +416,8 @@ var _ = Describe("Broker", func() {
 
 		It("returns the binding", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 			fakeProvider.BindReturns(brokerapi.Binding{
 				Credentials: "some-value-of-interface{}-type",
 				IsAsync:     true,
@@ -415,7 +449,8 @@ var _ = Describe("Broker", func() {
 			logger := lager.NewLogger("broker")
 			log := gbytes.NewBuffer()
 			logger.RegisterSink(lager.NewWriterSink(log, lager.DEBUG))
-			b := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			b, err := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Unbind(context.Background(), instanceID, bindingID, validUnbindDetails, true)
 
@@ -424,7 +459,8 @@ var _ = Describe("Broker", func() {
 
 		It("sets a deadline by which the unbinding request should complete", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Unbind(context.Background(), instanceID, bindingID, validUnbindDetails, true)
 
@@ -438,7 +474,8 @@ var _ = Describe("Broker", func() {
 
 		It("passes the correct data to the Provider", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Unbind(context.Background(), instanceID, bindingID, validUnbindDetails, true)
 
@@ -457,10 +494,11 @@ var _ = Describe("Broker", func() {
 
 		It("errors if unbinding fails", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 			fakeProvider.UnbindReturns(brokerapi.UnbindSpec{IsAsync: true}, errors.New("ERROR UNBINDING"))
 
-			_, err := b.Unbind(context.Background(), instanceID, bindingID, validUnbindDetails, true)
+			_, err = b.Unbind(context.Background(), instanceID, bindingID, validUnbindDetails, true)
 
 			Expect(err).To(MatchError("ERROR UNBINDING"))
 		})
@@ -469,7 +507,8 @@ var _ = Describe("Broker", func() {
 			logger := lager.NewLogger("broker")
 			log := gbytes.NewBuffer()
 			logger.RegisterSink(lager.NewWriterSink(log, lager.DEBUG))
-			b := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			b, err := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Unbind(context.Background(), instanceID, bindingID, validUnbindDetails, true)
 
@@ -514,19 +553,21 @@ var _ = Describe("Broker", func() {
 				})
 
 				It("returns an error when changing the plan", func() {
-					b := New(validConfig, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+					b, err := New(validConfig, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+					Expect(err).NotTo(HaveOccurred())
 
 					Expect(updatePlanDetails.PlanID).NotTo(Equal(updatePlanDetails.PreviousValues.PlanID))
-					_, err := b.Update(context.Background(), instanceID, updatePlanDetails, true)
+					_, err = b.Update(context.Background(), instanceID, updatePlanDetails, true)
 
 					Expect(err).To(Equal(brokerapi.ErrPlanChangeNotSupported))
 				})
 
 				It("accepts the update request when just changing parameters", func() {
-					b := New(validConfig, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+					b, err := New(validConfig, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+					Expect(err).NotTo(HaveOccurred())
 
 					Expect(updateParametersDetails.PlanID).To(Equal(updateParametersDetails.PreviousValues.PlanID))
-					_, err := b.Update(context.Background(), instanceID, updateParametersDetails, true)
+					_, err = b.Update(context.Background(), instanceID, updateParametersDetails, true)
 
 					Expect(err).NotTo(HaveOccurred())
 				})
@@ -537,7 +578,8 @@ var _ = Describe("Broker", func() {
 			logger := lager.NewLogger("broker")
 			log := gbytes.NewBuffer()
 			logger.RegisterSink(lager.NewWriterSink(log, lager.DEBUG))
-			b := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			b, err := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Update(context.Background(), instanceID, updatePlanDetails, true)
 
@@ -545,10 +587,11 @@ var _ = Describe("Broker", func() {
 		})
 
 		It("errors if async isn't allowed", func() {
-			b := New(validConfig, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			b, err := New(validConfig, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 			asyncAllowed := false
 
-			_, err := b.Update(context.Background(), instanceID, updatePlanDetails, asyncAllowed)
+			_, err = b.Update(context.Background(), instanceID, updatePlanDetails, asyncAllowed)
 
 			Expect(err).To(Equal(brokerapi.ErrAsyncRequired))
 		})
@@ -556,9 +599,10 @@ var _ = Describe("Broker", func() {
 		It("errors if the service is not in the catalog", func() {
 			config := validConfig
 			config.Catalog = Catalog{Catalog: brokerapi.CatalogResponse{}}
-			b := New(config, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			b, err := New(config, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
-			_, err := b.Update(context.Background(), instanceID, updatePlanDetails, true)
+			_, err = b.Update(context.Background(), instanceID, updatePlanDetails, true)
 
 			Expect(err).To(MatchError("Error: service " + service1.ID + " not found in the catalog"))
 		})
@@ -566,16 +610,18 @@ var _ = Describe("Broker", func() {
 		It("errors if the plan is not in the catalog", func() {
 			config := validConfig
 			config.Catalog.Catalog.Services[0].Plans = []brokerapi.ServicePlan{}
-			b := New(config, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			b, err := New(config, &fakes.FakeServiceProvider{}, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
-			_, err := b.Update(context.Background(), instanceID, updatePlanDetails, true)
+			_, err = b.Update(context.Background(), instanceID, updatePlanDetails, true)
 
 			Expect(err).To(MatchError("Error: plan " + plan2.ID + " not found in service " + service1.ID))
 		})
 
 		It("sets a deadline by which the update request should complete", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Update(context.Background(), instanceID, updatePlanDetails, true)
 
@@ -589,7 +635,8 @@ var _ = Describe("Broker", func() {
 
 		It("passes the correct data to the Provider", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Update(context.Background(), instanceID, updatePlanDetails, true)
 
@@ -608,10 +655,11 @@ var _ = Describe("Broker", func() {
 
 		It("errors if update fails", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 			fakeProvider.UpdateReturns("", true, errors.New("ERROR UPDATING"))
 
-			_, err := b.Update(context.Background(), instanceID, updatePlanDetails, true)
+			_, err = b.Update(context.Background(), instanceID, updatePlanDetails, true)
 
 			Expect(err).To(MatchError("ERROR UPDATING"))
 		})
@@ -620,7 +668,8 @@ var _ = Describe("Broker", func() {
 			logger := lager.NewLogger("broker")
 			log := gbytes.NewBuffer()
 			logger.RegisterSink(lager.NewWriterSink(log, lager.DEBUG))
-			b := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			b, err := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			Expect(err).NotTo(HaveOccurred())
 
 			b.Update(context.Background(), instanceID, updatePlanDetails, true)
 
@@ -629,7 +678,8 @@ var _ = Describe("Broker", func() {
 
 		It("returns the update service spec", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 			fakeProvider.UpdateReturns("operation data", true, nil)
 
 			Expect(b.Update(context.Background(), instanceID, updatePlanDetails, true)).
@@ -653,7 +703,8 @@ var _ = Describe("Broker", func() {
 			logger := lager.NewLogger("broker")
 			log := gbytes.NewBuffer()
 			logger.RegisterSink(lager.NewWriterSink(log, lager.DEBUG))
-			b := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			b, err := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			Expect(err).NotTo(HaveOccurred())
 
 			b.LastOperation(context.Background(), instanceID, pollDetails)
 
@@ -662,7 +713,8 @@ var _ = Describe("Broker", func() {
 
 		It("sets a deadline by which the last operation request should complete", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
 			b.LastOperation(context.Background(), instanceID, pollDetails)
 
@@ -676,7 +728,8 @@ var _ = Describe("Broker", func() {
 
 		It("passes the correct data to the Provider", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 
 			b.LastOperation(context.Background(), instanceID, pollDetails)
 
@@ -693,10 +746,11 @@ var _ = Describe("Broker", func() {
 
 		It("errors if last operation fails", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 			fakeProvider.LastOperationReturns(brokerapi.InProgress, "", errors.New("ERROR LAST OPERATION"))
 
-			_, err := b.LastOperation(context.Background(), instanceID, pollDetails)
+			_, err = b.LastOperation(context.Background(), instanceID, pollDetails)
 
 			Expect(err).To(MatchError("ERROR LAST OPERATION"))
 		})
@@ -705,7 +759,8 @@ var _ = Describe("Broker", func() {
 			logger := lager.NewLogger("broker")
 			log := gbytes.NewBuffer()
 			logger.RegisterSink(lager.NewWriterSink(log, lager.DEBUG))
-			b := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			b, err := New(validConfig, &fakes.FakeServiceProvider{}, logger)
+			Expect(err).NotTo(HaveOccurred())
 
 			b.LastOperation(context.Background(), instanceID, pollDetails)
 
@@ -714,7 +769,8 @@ var _ = Describe("Broker", func() {
 
 		It("returns the last operation status", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
-			b := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
 			fakeProvider.LastOperationReturns(brokerapi.Succeeded, "Provision successful", nil)
 
 			Expect(b.LastOperation(context.Background(), instanceID, pollDetails)).

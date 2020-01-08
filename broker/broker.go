@@ -2,14 +2,22 @@ package broker
 
 import (
 	"context"
+	"fmt"
 	"time"
+
+	uuid "github.com/satori/go.uuid"
+
+	"errors"
 
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/locket"
 	locket_models "code.cloudfoundry.org/locket/models"
-	"errors"
 	"github.com/alphagov/paas-service-broker-base/provider"
 	"github.com/pivotal-cf/brokerapi"
+)
+
+const (
+	locketMaxTTL = 30
 )
 
 type Broker struct {
@@ -93,6 +101,12 @@ func (b *Broker) Provision(
 	providerCtx, cancelFunc := context.WithTimeout(ctx, 30*time.Second)
 	defer cancelFunc()
 
+	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
+	if err != nil {
+		return brokerapi.ProvisionedServiceSpec{}, err
+	}
+	defer b.ReleaseServiceLock(providerCtx, lock)
+
 	provisionData := provider.ProvisionData{
 		InstanceID: instanceID,
 		Details:    details,
@@ -148,6 +162,12 @@ func (b *Broker) Deprovision(
 		return brokerapi.DeprovisionServiceSpec{}, err
 	}
 
+	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
+	if err != nil {
+		return brokerapi.DeprovisionServiceSpec{}, err
+	}
+	defer b.ReleaseServiceLock(providerCtx, lock)
+
 	deprovisionData := provider.DeprovisionData{
 		InstanceID: instanceID,
 		Service:    service,
@@ -189,6 +209,12 @@ func (b *Broker) Bind(
 	providerCtx, cancelFunc := context.WithTimeout(ctx, 30*time.Second)
 	defer cancelFunc()
 
+	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
+	if err != nil {
+		return brokerapi.Binding{}, err
+	}
+	defer b.ReleaseServiceLock(providerCtx, lock)
+
 	bindData := provider.BindData{
 		InstanceID:   instanceID,
 		BindingID:    bindingID,
@@ -225,6 +251,12 @@ func (b *Broker) Unbind(
 
 	providerCtx, cancelFunc := context.WithTimeout(ctx, 30*time.Second)
 	defer cancelFunc()
+
+	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
+	if err != nil {
+		return brokerapi.UnbindSpec{}, err
+	}
+	defer b.ReleaseServiceLock(providerCtx, lock)
 
 	unbindData := provider.UnbindData{
 		InstanceID:   instanceID,
@@ -287,6 +319,12 @@ func (b *Broker) Update(
 
 	providerCtx, cancelFunc := context.WithTimeout(ctx, 30*time.Second)
 	defer cancelFunc()
+
+	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
+	if err != nil {
+		return brokerapi.UpdateServiceSpec{}, err
+	}
+	defer b.ReleaseServiceLock(providerCtx, lock)
 
 	updateData := provider.UpdateData{
 		InstanceID: instanceID,
@@ -357,4 +395,85 @@ func (b *Broker) LastBindingOperation(
 
 func (b *Broker) GetInstance(ctx context.Context, instanceID string) (brokerapi.GetInstanceDetailsSpec, error) {
 	return brokerapi.GetInstanceDetailsSpec{}, errors.New("not implemented")
+}
+
+func (b *Broker) ObtainServiceLock(
+	ctx context.Context,
+	serviceName string,
+	locketMaxTTL int,
+) (ServiceLock, error) {
+	// A Locket owner is the unique identifier of who currently owns this lock
+	// Therefore each operation on the broker should be a unique owner
+	// We generate a new UUID V4 for this
+
+	lock := ServiceLock{
+		ServiceName: serviceName,
+		Key:         fmt.Sprintf("broker/%s", serviceName),
+		Owner:       fmt.Sprintf("broker/%s", uuid.NewV4().String()),
+	}
+
+	lsession := b.logger.Session("obtain-lock-on-service", lager.Data{
+		"service-name": serviceName,
+		"lock":         lock,
+	})
+
+	lsession.Debug("begin")
+
+	var err error
+	for attempts := 0; attempts <= locketMaxTTL; attempts++ {
+		_, err = b.locketClient.Lock(
+			ctx,
+			&locket_models.LockRequest{
+				Resource: &locket_models.Resource{
+					Key:      lock.Key,
+					Owner:    lock.Owner,
+					TypeCode: locket_models.LOCK,
+				},
+				TtlInSeconds: int64(locketMaxTTL),
+			},
+		)
+
+		if err == nil {
+			break
+		}
+
+		// We should check for an acceptable error here, but in practice there are
+		// many errors from grpc/locket/sqldb we should just try 15 times
+
+		time.Sleep(1 * time.Second)
+	}
+
+	if err != nil {
+		lsession.Error("error", err)
+		return lock, err
+	}
+
+	lsession.Debug("success")
+	return lock, nil
+}
+
+func (b *Broker) ReleaseServiceLock(
+	ctx context.Context,
+	lock ServiceLock,
+) {
+	lsession := b.logger.Session("release-lock-on-service", lager.Data{
+		"lock": lock,
+	})
+
+	lsession.Debug("begin")
+
+	_, err := b.locketClient.Release(
+		ctx,
+		&locket_models.ReleaseRequest{
+			Resource: &locket_models.Resource{
+				Key:      lock.Key,
+				Owner:    lock.Owner,
+				TypeCode: locket_models.LOCK,
+			},
+		},
+	)
+
+	if err != nil {
+		lsession.Error("error", err)
+	}
 }

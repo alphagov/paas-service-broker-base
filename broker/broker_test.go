@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"path"
+	"sync"
+	"time"
 
 	"code.cloudfoundry.org/lager"
 	. "github.com/alphagov/paas-service-broker-base/broker"
@@ -778,6 +780,53 @@ var _ = Describe("Broker", func() {
 					State:       brokerapi.Succeeded,
 					Description: "Provision successful",
 				}))
+		})
+	})
+
+	Describe("Locking", func() {
+		It("Should lock and unlock", func() {
+			fakeProvider := &fakes.FakeServiceProvider{}
+			logger := lager.NewLogger("broker")
+			b, err := New(validConfig, fakeProvider, logger)
+			Expect(err).NotTo(HaveOccurred())
+			s := "original"
+			wg := sync.WaitGroup{}
+			wg.Add(2)
+
+			go func() {
+				By("g1 getting lock")
+				lock, err := b.ObtainServiceLock(context.Background(), instanceID, 30)
+				Expect(err).NotTo(HaveOccurred())
+				defer b.ReleaseServiceLock(context.Background(), lock)
+				By("g1 got lock")
+
+				g1original := s
+				s = "goroutine-1"
+				time.Sleep(1 * time.Second)
+				s = g1original
+
+				By("g1 done")
+				wg.Done()
+			}()
+			go func() {
+				By("g2 getting lock")
+				lock, err := b.ObtainServiceLock(context.Background(), instanceID, 30)
+				Expect(err).NotTo(HaveOccurred())
+				defer b.ReleaseServiceLock(context.Background(), lock)
+				By("g2 got lock")
+
+				g2original := s
+				s = "goroutine-2"
+				time.Sleep(1 * time.Second)
+				s = g2original
+
+				By("g2 done")
+				wg.Done()
+			}()
+
+			wg.Wait()
+
+			Expect(s).To(Equal("original"))
 		})
 	})
 })

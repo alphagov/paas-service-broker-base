@@ -7,3 +7,9 @@ type LocketConfig struct {
 	ClientKeyFile  string `json:"client_key_file"`
 	SkipVerify     bool
 }
+
+type ServiceLock struct {
+	ServiceName string
+	Key         string
+	Owner       string
+}

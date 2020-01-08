@@ -15,6 +15,7 @@ require (
 	github.com/onsi/gomega v1.5.0
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/pivotal-cf/brokerapi v4.3.0+incompatible
+	github.com/satori/go.uuid v1.2.0
 	github.com/tedsuo/ifrit v0.0.0-20191009134036-9a97d0632f00
 	golang.org/x/net v0.0.0-20190501004415-9ce7a6920f09
 	google.golang.org/grpc v1.26.0 // indirect

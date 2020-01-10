@@ -3,25 +3,19 @@ package broker_test
 import (
 	"testing"
 
-	"fmt"
-	"os/exec"
 	"path"
-	"path/filepath"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gbytes"
-	"github.com/onsi/gomega/gexec"
 
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/locket"
-	"github.com/phayes/freeport"
+	"github.com/alphagov/paas-service-broker-base/testing/mock_locket_server"
 )
 
 var (
-	locketSession *gexec.Session
-	locketAddress string
-	fixturesPath  string
+	mockLocket     *mock_locket_server.MockLocket
+	locketFixtures mock_locket_server.LocketFixtures
 )
 
 func TestBroker(t *testing.T) {
@@ -32,35 +26,21 @@ func TestBroker(t *testing.T) {
 var _ = BeforeSuite(func() {
 	var err error
 
-	locketPath, err := gexec.Build("github.com/alphagov/paas-service-broker-base/testing/mock_locket_server")
+	locketFixtures, err = mock_locket_server.SetupLocketFixtures()
 	Expect(err).NotTo(HaveOccurred())
-
-	port, err := freeport.GetFreePort()
+	mockLocket, err = mock_locket_server.New("keyBasedLock", locketFixtures.Filepath)
 	Expect(err).NotTo(HaveOccurred())
-	locketAddress = fmt.Sprintf("127.0.0.1:%d", port)
-
-	fixturesPath, err = filepath.Abs("../testing/mock_locket_server/fixtures")
-	Expect(err).NotTo(HaveOccurred())
-
-	command := exec.Command(
-		locketPath,
-		"-listenAddress="+locketAddress,
-		"-fixturesPath="+fixturesPath,
-	)
-	locketSession, err = gexec.Start(command, GinkgoWriter, GinkgoWriter)
-	Expect(err).NotTo(HaveOccurred())
-
-	Eventually(locketSession).Should(gbytes.Say("listen"))
+	mockLocket.Start(mockLocket.Logger, mockLocket.ListenAddress, mockLocket.Certificate, mockLocket.Handler)
 
 	locketLogger := lager.NewLogger("locket-test")
 	Eventually(func() error {
 		_, err := locket.NewClientSkipCertVerify(
 			locketLogger,
 			locket.ClientLocketConfig{
-				LocketAddress:        locketAddress,
-				LocketCACertFile:     path.Join(fixturesPath, "locket-server.cert.pem"),
-				LocketClientCertFile: path.Join(fixturesPath, "locket-client.cert.pem"),
-				LocketClientKeyFile:  path.Join(fixturesPath, "locket-client.key.pem"),
+				LocketAddress:        mockLocket.ListenAddress,
+				LocketCACertFile:     path.Join(locketFixtures.Filepath, "locket-server.cert.pem"),
+				LocketClientCertFile: path.Join(locketFixtures.Filepath, "locket-client.cert.pem"),
+				LocketClientKeyFile:  path.Join(locketFixtures.Filepath, "locket-client.key.pem"),
 			},
 		)
 		return err
@@ -68,6 +48,8 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	gexec.CleanupBuildArtifacts()
-	locketSession.Kill()
+	if mockLocket != nil {
+		mockLocket.Stop()
+	}
+	locketFixtures.Cleanup()
 })

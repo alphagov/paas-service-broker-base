@@ -1,4 +1,4 @@
-package main
+package mock_locket_server
 
 //
 // This mock locket server was imported
@@ -10,34 +10,31 @@ package main
 import (
 	"crypto/tls"
 	"os"
+	"path"
+	"syscall"
+
+	"errors"
+	"fmt"
+	"sync"
 
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/locket/grpcserver"
 	"code.cloudfoundry.org/locket/models"
-	"errors"
-	"flag"
-	"fmt"
+	"github.com/phayes/freeport"
 	"github.com/tedsuo/ifrit"
 	gcontext "golang.org/x/net/context"
-	"path"
-	"sync"
 )
 
-var (
-	fixturesPath  string
-	lockingMode   string
-	listenAddress string
-)
-
-func init() {
-	flag.StringVar(&fixturesPath, "fixturesPath", "", "Path to a directory containing client.{crt,key}")
-	flag.StringVar(&lockingMode, "mode", "keyBasedLock", "Determines the locking behaviour")
-	flag.StringVar(&listenAddress, "listenAddress", "", "The host and port to listen on. Example: 0.0.0.0:8891")
+type MockLocket struct {
+	Logger        lager.Logger
+	ListenAddress string
+	Certificate   tls.Certificate
+	LockingMode   string
+	Handler       testHandler
+	Process       ifrit.Process
 }
 
-func main() {
-	flag.Parse()
-
+func New(lockingMode string, fixturesPath string) (*MockLocket, error) {
 	logger := lager.NewLogger("grpc")
 	logger.RegisterSink(lager.NewWriterSink(os.Stdout, lager.DEBUG))
 
@@ -52,22 +49,40 @@ func main() {
 	)
 	if err != nil {
 		logger.Error("Error loading certs", err)
-		os.Exit(1)
+		return nil, err
 	}
+
+	port, err := freeport.GetFreePort()
+	if err != nil {
+		logger.Error("Error getting TCP port", err)
+		return nil, err
+	}
+	listenAddress := fmt.Sprintf("127.0.0.1:%d", port)
 
 	logger.Debug("listen", lager.Data{
 		"address":      listenAddress,
 		"locking-mode": lockingMode,
 	})
 
+	return &MockLocket{
+		Logger:        logger,
+		ListenAddress: listenAddress,
+		Certificate:   certificate,
+		LockingMode:   lockingMode,
+		Handler:       handler,
+	}, nil
+}
+
+func (m *MockLocket) Start(logger lager.Logger, listenAddress string, certificate tls.Certificate, handler testHandler) {
 	grpcServer := grpcserver.NewGRPCServer(logger, listenAddress, &tls.Config{
 		Certificates: []tls.Certificate{certificate},
 	}, &handler)
-	err = <-ifrit.Invoke(grpcServer).Wait()
-	if err != nil {
-		logger.Error("exited-with-failure", err)
-		os.Exit(1)
-	}
+	m.Process = ifrit.Invoke(grpcServer)
+	<-m.Process.Ready()
+}
+
+func (m *MockLocket) Stop() {
+	m.Process.Signal(syscall.SIGKILL)
 }
 
 type testHandler struct {

@@ -18,7 +18,7 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/tedsuo/ifrit v0.0.0-20191009134036-9a97d0632f00
 	golang.org/x/net v0.0.0-20190501004415-9ce7a6920f09
-	google.golang.org/grpc v1.26.0 // indirect
+	google.golang.org/grpc v1.26.0
 )
 
 go 1.13

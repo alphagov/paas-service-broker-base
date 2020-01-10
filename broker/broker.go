@@ -24,7 +24,7 @@ type Broker struct {
 	config       Config
 	Provider     provider.ServiceProvider
 	logger       lager.Logger
-	locketClient locket_models.LocketClient
+	LocketClient locket_models.LocketClient
 }
 
 func New(config Config, serviceProvider provider.ServiceProvider, logger lager.Logger) (*Broker, error) {
@@ -64,7 +64,7 @@ func New(config Config, serviceProvider provider.ServiceProvider, logger lager.L
 		config:       config,
 		Provider:     serviceProvider,
 		logger:       logger,
-		locketClient: locketClient,
+		LocketClient: locketClient,
 	}, nil
 }
 
@@ -421,7 +421,7 @@ func (b *Broker) ObtainServiceLock(
 
 	var err error
 	for attempts := 0; attempts <= locketMaxTTL; attempts++ {
-		_, err = b.locketClient.Lock(
+		_, err = b.LocketClient.Lock(
 			ctx,
 			&locket_models.LockRequest{
 				Resource: &locket_models.Resource{
@@ -462,7 +462,7 @@ func (b *Broker) ReleaseServiceLock(
 
 	lsession.Debug("begin")
 
-	_, err := b.locketClient.Release(
+	_, err := b.LocketClient.Release(
 		ctx,
 		&locket_models.ReleaseRequest{
 			Resource: &locket_models.Resource{

@@ -13,6 +13,8 @@ import (
 	"github.com/alphagov/paas-service-broker-base/provider"
 	"github.com/alphagov/paas-service-broker-base/provider/fakes"
 	"github.com/pivotal-cf/brokerapi"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -195,6 +197,70 @@ var _ = Describe("Broker", func() {
 					DashboardURL:  "dashboard URL",
 					OperationData: "operation data",
 				}))
+		})
+
+		It("gets a lock and releases it once it's created", func() {
+			fakeProvider := &fakes.FakeServiceProvider{}
+			locket := &fakes.FakeLocketClient{}
+
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
+			b.LocketClient = locket
+
+			b.Provision(context.Background(), instanceID, validProvisionDetails, true)
+			Expect(locket.LockCallCount()).To(Equal(1))
+			_, lockCallOne, _ := locket.LockArgsForCall(0)
+			Expect(lockCallOne.Resource.Key).To(ContainSubstring("broker/instanceID"))
+
+			Expect(locket.ReleaseCallCount()).To(Equal(1))
+			_, releaseReqOne, _ := locket.ReleaseArgsForCall(0)
+			Expect(releaseReqOne.Resource.Key).To(Equal(lockCallOne.Resource.Key))
+		})
+
+		It("waits for a lock and releases it once it's created", func() {
+			fakeProvider := &fakes.FakeServiceProvider{}
+			locket := &fakes.FakeLocketClient{}
+			locket.LockReturnsOnCall(0, nil, grpc.Errorf(codes.AlreadyExists, "lock-collision"))
+			locket.LockReturnsOnCall(1, nil, nil)
+
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
+			b.LocketClient = locket
+
+			b.Provision(context.Background(), instanceID, validProvisionDetails, true)
+
+			Expect(locket.LockCallCount()).To(Equal(2))
+
+			_, lockCallOne, _ := locket.LockArgsForCall(0)
+			Expect(lockCallOne.Resource.Key).To(ContainSubstring("broker/instanceID"))
+
+			_, lockCallTwo, _ := locket.LockArgsForCall(1)
+			Expect(lockCallTwo.Resource.Key).To(ContainSubstring("broker/instanceID"))
+
+			Expect(locket.ReleaseCallCount()).To(Equal(1))
+			_, releaseReqOne, _ := locket.ReleaseArgsForCall(0)
+			Expect(releaseReqOne.Resource.Key).To(Equal(lockCallOne.Resource.Key))
+		})
+
+		It("fails after waiting for many locks", func() {
+			fakeProvider := &fakes.FakeServiceProvider{}
+			locket := &fakes.FakeLocketClient{}
+			locket.LockReturns(nil, grpc.Errorf(codes.AlreadyExists, "lock-collision"))
+
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
+			b.LocketClient = locket
+
+			_, err = b.Provision(context.Background(), instanceID, validProvisionDetails, true)
+
+			Expect(err).To(HaveOccurred())
+
+			Expect(locket.LockCallCount()).To(Equal(31))
+
+			_, lockCallOne, _ := locket.LockArgsForCall(0)
+			Expect(lockCallOne.Resource.Key).To(ContainSubstring("broker/instanceID"))
+
+			Expect(locket.ReleaseCallCount()).To(Equal(0))
 		})
 	})
 
@@ -431,6 +497,25 @@ var _ = Describe("Broker", func() {
 					IsAsync:     true,
 				}))
 		})
+
+		It("gets a lock and releases it at the end", func() {
+			fakeProvider := &fakes.FakeServiceProvider{}
+			locket := &fakes.FakeLocketClient{}
+
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
+			b.LocketClient = locket
+
+			b.Bind(context.Background(), instanceID, bindingID, validBindDetails, true)
+
+			Expect(locket.LockCallCount()).To(Equal(1))
+			_, lockCallOne, _ := locket.LockArgsForCall(0)
+			Expect(lockCallOne.Resource.Key).To(ContainSubstring("broker/instanceID"))
+
+			Expect(locket.ReleaseCallCount()).To(Equal(1))
+			_, releaseReqOne, _ := locket.ReleaseArgsForCall(0)
+			Expect(releaseReqOne.Resource.Key).To(Equal(lockCallOne.Resource.Key))
+		})
 	})
 
 	Describe("Unbind", func() {
@@ -515,6 +600,25 @@ var _ = Describe("Broker", func() {
 			b.Unbind(context.Background(), instanceID, bindingID, validUnbindDetails, true)
 
 			Expect(log).To(gbytes.Say("unbinding-success"))
+		})
+
+		It("gets a lock and releases it at the end", func() {
+			fakeProvider := &fakes.FakeServiceProvider{}
+			locket := &fakes.FakeLocketClient{}
+
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
+			b.LocketClient = locket
+
+			b.Unbind(context.Background(), instanceID, bindingID, validUnbindDetails, true)
+
+			Expect(locket.LockCallCount()).To(Equal(1))
+			_, lockCallOne, _ := locket.LockArgsForCall(0)
+			Expect(lockCallOne.Resource.Key).To(ContainSubstring("broker/instanceID"))
+
+			Expect(locket.ReleaseCallCount()).To(Equal(1))
+			_, releaseReqOne, _ := locket.ReleaseArgsForCall(0)
+			Expect(releaseReqOne.Resource.Key).To(Equal(lockCallOne.Resource.Key))
 		})
 	})
 

@@ -98,7 +98,7 @@ func (b *Broker) Provision(
 		return brokerapi.ProvisionedServiceSpec{}, err
 	}
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, 30*time.Second)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
 	defer cancelFunc()
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
@@ -149,7 +149,7 @@ func (b *Broker) Deprovision(
 		return brokerapi.DeprovisionServiceSpec{}, brokerapi.ErrAsyncRequired
 	}
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, 30*time.Second)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
 	defer cancelFunc()
 
 	service, err := findServiceByID(b.config.Catalog, details.ServiceID)
@@ -206,7 +206,7 @@ func (b *Broker) Bind(
 		"details":     details,
 	})
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, 30*time.Second)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
 	defer cancelFunc()
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
@@ -249,7 +249,7 @@ func (b *Broker) Unbind(
 		"details":     details,
 	})
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, 30*time.Second)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
 	defer cancelFunc()
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
@@ -317,7 +317,7 @@ func (b *Broker) Update(
 		return brokerapi.UpdateServiceSpec{}, err
 	}
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, 30*time.Second)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
 	defer cancelFunc()
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
@@ -360,7 +360,7 @@ func (b *Broker) LastOperation(
 		"poll-details": pollDetails,
 	})
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, 30*time.Second)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
 	defer cancelFunc()
 
 	lastOperationData := provider.LastOperationData{

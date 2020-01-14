@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"path"
 
 	"code.cloudfoundry.org/lager"
 	. "github.com/alphagov/paas-service-broker-base/broker"
@@ -18,16 +19,21 @@ import (
 
 var _ = Describe("Broker API", func() {
 	var (
-		instanceID   string
-		orgGUID      string
-		spaceGUID    string
-		service1     string
-		plan1        string
-		validConfig  Config
-		username     string
-		password     string
+		err error
+
+		instanceID  string
+		orgGUID     string
+		spaceGUID   string
+		service1    string
+		plan1       string
+		validConfig Config
+
+		username string
+		password string
+
 		logger       lager.Logger
 		fakeProvider *fakes.FakeServiceProvider
+
 		broker       *Broker
 		brokerAPI    http.Handler
 		brokerTester broker_tester.BrokerTester
@@ -43,6 +49,13 @@ var _ = Describe("Broker API", func() {
 			API: API{
 				BasicAuthUsername: username,
 				BasicAuthPassword: password,
+				Locket: LocketConfig{
+					Address:        mockLocket.ListenAddress,
+					CACertFile:     path.Join(locketFixtures.Filepath, "locket-server.cert.pem"),
+					ClientCertFile: path.Join(locketFixtures.Filepath, "locket-client.cert.pem"),
+					ClientKeyFile:  path.Join(locketFixtures.Filepath, "locket-client.key.pem"),
+					SkipVerify:     true,
+				},
 			},
 			Catalog: Catalog{brokerapi.CatalogResponse{
 				Services: []brokerapi.Service{
@@ -64,7 +77,8 @@ var _ = Describe("Broker API", func() {
 		logger = lager.NewLogger("broker-api")
 		logger.RegisterSink(lager.NewWriterSink(GinkgoWriter, lager.DEBUG))
 		fakeProvider = &fakes.FakeServiceProvider{}
-		broker = New(validConfig, fakeProvider, logger)
+		broker, err = New(validConfig, fakeProvider, logger)
+		Expect(err).NotTo(HaveOccurred())
 		brokerAPI = NewAPI(broker, logger, validConfig)
 
 		brokerTester = broker_tester.New(brokerapi.BrokerCredentials{

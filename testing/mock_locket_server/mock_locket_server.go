@@ -13,7 +13,6 @@ import (
 	"path"
 	"syscall"
 
-	"errors"
 	"fmt"
 	"sync"
 
@@ -130,7 +129,7 @@ func (h *testHandler) Lock(ctx gcontext.Context, req *models.LockRequest) (*mode
 
 		return nil, models.ErrLockCollision
 	default:
-		return nil, errors.New(fmt.Sprintf("Unexpected mode %s", h.mode))
+		return nil, fmt.Errorf("Unexpected mode %s", h.mode)
 	}
 }
 

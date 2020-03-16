@@ -57,7 +57,22 @@ var _ = Describe("Config", func() {
 			Expect(err).To(MatchError("Config error: catalog required"))
 		})
 
-		It("requires a locket address", func() {
+		It("requires a locket address if locket config provided", func() {
+			configSource = `
+				{
+					"basic_auth_username":"username",
+					"basic_auth_password":"1234",
+					"port": "8080",
+					"log_level": "debug",
+					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]},
+					"locket": {}
+				}
+			`
+			_, err := NewConfig(strings.NewReader(configSource))
+			Expect(err).To(MatchError("Config error: locket address required"))
+		})
+
+		It("does not require locket config", func() {
 			configSource = `
 				{
 					"basic_auth_username":"username",
@@ -68,7 +83,7 @@ var _ = Describe("Config", func() {
 				}
 			`
 			_, err := NewConfig(strings.NewReader(configSource))
-			Expect(err).To(MatchError("Config error: locket address required"))
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 

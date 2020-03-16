@@ -9,7 +9,8 @@ import (
 	"strings"
 
 	"code.cloudfoundry.org/lager"
-	"github.com/pivotal-cf/brokerapi"
+	"github.com/pivotal-cf/brokerapi/domain"
+	"github.com/pivotal-cf/brokerapi/domain/apiresponses"
 )
 
 const (
@@ -79,8 +80,10 @@ func (c Config) Validate() error {
 			return fmt.Errorf("Config error: no plans found for service %s", service.Name)
 		}
 	}
-	if c.API.Locket.Address == "" {
-		return fmt.Errorf("Config error: locket address required")
+	if c.API.Locket != nil {
+		if c.API.Locket.Address == "" {
+			return fmt.Errorf("Config error: locket address required")
+		}
 	}
 	return nil
 }
@@ -91,7 +94,7 @@ type API struct {
 	Port              string `json:"port"`
 	LogLevel          string `json:"log_level"`
 	LagerLogLevel     lager.LogLevel
-	Locket            LocketConfig `json:"locket"`
+	Locket            *LocketConfig `json:"locket"`
 }
 
 func (api API) ConvertLogLevel() (lager.LogLevel, error) {
@@ -109,23 +112,23 @@ func (api API) ConvertLogLevel() (lager.LogLevel, error) {
 }
 
 type Catalog struct {
-	Catalog brokerapi.CatalogResponse `json:"catalog"`
+	Catalog apiresponses.CatalogResponse `json:"catalog"`
 }
 
-func findServiceByID(catalog Catalog, serviceID string) (brokerapi.Service, error) {
+func findServiceByID(catalog Catalog, serviceID string) (domain.Service, error) {
 	for _, service := range catalog.Catalog.Services {
 		if service.ID == serviceID {
 			return service, nil
 		}
 	}
-	return brokerapi.Service{}, fmt.Errorf("Error: service %s not found in the catalog", serviceID)
+	return domain.Service{}, fmt.Errorf("Error: service %s not found in the catalog", serviceID)
 }
 
-func findPlanByID(service brokerapi.Service, planID string) (brokerapi.ServicePlan, error) {
+func findPlanByID(service domain.Service, planID string) (domain.ServicePlan, error) {
 	for _, plan := range service.Plans {
 		if plan.ID == planID {
 			return plan, nil
 		}
 	}
-	return brokerapi.ServicePlan{}, fmt.Errorf("Error: plan %s not found in service %s", planID, service.ID)
+	return domain.ServicePlan{}, fmt.Errorf("Error: plan %s not found in service %s", planID, service.ID)
 }

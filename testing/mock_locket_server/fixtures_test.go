@@ -16,6 +16,7 @@ var _ = Describe("Locket Fixtures", func() {
 		_, err = os.Stat(f.Filepath + "/locket-client.cert.pem")
 		Expect(err).NotTo(HaveOccurred())
 		clientCert, err := ioutil.ReadFile(f.Filepath + "/locket-client.cert.pem")
+		Expect(err).ToNot(HaveOccurred())
 		Expect(string(clientCert)).To(Equal(mock_locket_server.LocketClientCertPEM))
 		f.Cleanup()
 		_, err = os.Stat(f.Filepath + "/locket-client.cert.pem")

@@ -10,10 +10,10 @@ import (
 	"errors"
 
 	"code.cloudfoundry.org/lager"
-	"code.cloudfoundry.org/locket"
 	locket_models "code.cloudfoundry.org/locket/models"
 	"github.com/alphagov/paas-service-broker-base/provider"
 	"github.com/pivotal-cf/brokerapi"
+	"github.com/pivotal-cf/brokerapi/domain"
 )
 
 const (
@@ -28,56 +28,32 @@ type Broker struct {
 }
 
 func New(config Config, serviceProvider provider.ServiceProvider, logger lager.Logger) (*Broker, error) {
-
-	locketSession := logger.Session("locket")
-	var (
-		err          error
-		locketClient locket_models.LocketClient
-	)
-
-	if config.API.Locket.SkipVerify {
-		locketClient, err = locket.NewClientSkipCertVerify(
-			locketSession,
-			locket.ClientLocketConfig{
-				LocketAddress:        config.API.Locket.Address,
-				LocketCACertFile:     config.API.Locket.CACertFile,
-				LocketClientCertFile: config.API.Locket.ClientCertFile,
-				LocketClientKeyFile:  config.API.Locket.ClientKeyFile,
-			},
-		)
-	} else {
-		locketClient, err = locket.NewClient(
-			locketSession,
-			locket.ClientLocketConfig{
-				LocketAddress:        config.API.Locket.Address,
-				LocketCACertFile:     config.API.Locket.CACertFile,
-				LocketClientCertFile: config.API.Locket.ClientCertFile,
-				LocketClientKeyFile:  config.API.Locket.ClientKeyFile,
-			},
-		)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return &Broker{
+	b := &Broker{
 		config:       config,
 		Provider:     serviceProvider,
 		logger:       logger,
-		LocketClient: locketClient,
-	}, nil
+		LocketClient: &SimpleLock{},
+	}
+	if config.API.Locket != nil {
+		locketClient, err := newLocketClient(config.API.Locket, logger)
+		if err != nil {
+			return nil, err
+		}
+		b.LocketClient = locketClient
+	}
+	return b, nil
 }
 
-func (b *Broker) Services(ctx context.Context) ([]brokerapi.Service, error) {
+func (b *Broker) Services(ctx context.Context) ([]domain.Service, error) {
 	return b.config.Catalog.Catalog.Services, nil
 }
 
 func (b *Broker) Provision(
 	ctx context.Context,
 	instanceID string,
-	details brokerapi.ProvisionDetails,
+	details domain.ProvisionDetails,
 	asyncAllowed bool,
-) (brokerapi.ProvisionedServiceSpec, error) {
+) (domain.ProvisionedServiceSpec, error) {
 	b.logger.Debug("provision-start", lager.Data{
 		"instance-id":   instanceID,
 		"details":       details,
@@ -85,17 +61,17 @@ func (b *Broker) Provision(
 	})
 
 	if !asyncAllowed {
-		return brokerapi.ProvisionedServiceSpec{}, brokerapi.ErrAsyncRequired
+		return domain.ProvisionedServiceSpec{}, brokerapi.ErrAsyncRequired
 	}
 
 	service, err := findServiceByID(b.config.Catalog, details.ServiceID)
 	if err != nil {
-		return brokerapi.ProvisionedServiceSpec{}, err
+		return domain.ProvisionedServiceSpec{}, err
 	}
 
 	plan, err := findPlanByID(service, details.PlanID)
 	if err != nil {
-		return brokerapi.ProvisionedServiceSpec{}, err
+		return domain.ProvisionedServiceSpec{}, err
 	}
 
 	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
@@ -103,7 +79,7 @@ func (b *Broker) Provision(
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
 	if err != nil {
-		return brokerapi.ProvisionedServiceSpec{}, err
+		return domain.ProvisionedServiceSpec{}, err
 	}
 	defer b.ReleaseServiceLock(providerCtx, lock)
 
@@ -116,7 +92,7 @@ func (b *Broker) Provision(
 
 	dashboardURL, operationData, isAsync, err := b.Provider.Provision(providerCtx, provisionData)
 	if err != nil {
-		return brokerapi.ProvisionedServiceSpec{}, err
+		return domain.ProvisionedServiceSpec{}, err
 	}
 
 	b.logger.Debug("provision-success", lager.Data{
@@ -126,7 +102,7 @@ func (b *Broker) Provision(
 		"is-async":       isAsync,
 	})
 
-	return brokerapi.ProvisionedServiceSpec{
+	return domain.ProvisionedServiceSpec{
 		IsAsync:       isAsync,
 		DashboardURL:  dashboardURL,
 		OperationData: operationData,
@@ -136,9 +112,9 @@ func (b *Broker) Provision(
 func (b *Broker) Deprovision(
 	ctx context.Context,
 	instanceID string,
-	details brokerapi.DeprovisionDetails,
+	details domain.DeprovisionDetails,
 	asyncAllowed bool,
-) (brokerapi.DeprovisionServiceSpec, error) {
+) (domain.DeprovisionServiceSpec, error) {
 	b.logger.Debug("deprovision-start", lager.Data{
 		"instance-id":   instanceID,
 		"details":       details,
@@ -146,7 +122,7 @@ func (b *Broker) Deprovision(
 	})
 
 	if !asyncAllowed {
-		return brokerapi.DeprovisionServiceSpec{}, brokerapi.ErrAsyncRequired
+		return domain.DeprovisionServiceSpec{}, brokerapi.ErrAsyncRequired
 	}
 
 	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
@@ -154,17 +130,17 @@ func (b *Broker) Deprovision(
 
 	service, err := findServiceByID(b.config.Catalog, details.ServiceID)
 	if err != nil {
-		return brokerapi.DeprovisionServiceSpec{}, err
+		return domain.DeprovisionServiceSpec{}, err
 	}
 
 	plan, err := findPlanByID(service, details.PlanID)
 	if err != nil {
-		return brokerapi.DeprovisionServiceSpec{}, err
+		return domain.DeprovisionServiceSpec{}, err
 	}
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
 	if err != nil {
-		return brokerapi.DeprovisionServiceSpec{}, err
+		return domain.DeprovisionServiceSpec{}, err
 	}
 	defer b.ReleaseServiceLock(providerCtx, lock)
 
@@ -177,7 +153,7 @@ func (b *Broker) Deprovision(
 
 	operationData, isAsync, err := b.Provider.Deprovision(providerCtx, deprovisionData)
 	if err != nil {
-		return brokerapi.DeprovisionServiceSpec{}, err
+		return domain.DeprovisionServiceSpec{}, err
 	}
 
 	b.logger.Debug("deprovision-success", lager.Data{
@@ -187,7 +163,7 @@ func (b *Broker) Deprovision(
 		"is-async":       isAsync,
 	})
 
-	return brokerapi.DeprovisionServiceSpec{
+	return domain.DeprovisionServiceSpec{
 		IsAsync:       isAsync,
 		OperationData: operationData,
 	}, nil
@@ -197,9 +173,9 @@ func (b *Broker) Bind(
 	ctx context.Context,
 	instanceID,
 	bindingID string,
-	details brokerapi.BindDetails,
+	details domain.BindDetails,
 	asyncAllowed bool,
-) (brokerapi.Binding, error) {
+) (domain.Binding, error) {
 	b.logger.Debug("binding-start", lager.Data{
 		"instance-id": instanceID,
 		"binding-id":  bindingID,
@@ -211,7 +187,7 @@ func (b *Broker) Bind(
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
 	if err != nil {
-		return brokerapi.Binding{}, err
+		return domain.Binding{}, err
 	}
 	defer b.ReleaseServiceLock(providerCtx, lock)
 
@@ -224,7 +200,7 @@ func (b *Broker) Bind(
 
 	binding, err := b.Provider.Bind(providerCtx, bindData)
 	if err != nil {
-		return brokerapi.Binding{}, err
+		return domain.Binding{}, err
 	}
 
 	b.logger.Debug("binding-success", lager.Data{
@@ -240,9 +216,9 @@ func (b *Broker) Unbind(
 	ctx context.Context,
 	instanceID,
 	bindingID string,
-	details brokerapi.UnbindDetails,
+	details domain.UnbindDetails,
 	asyncAllowed bool,
-) (brokerapi.UnbindSpec, error) {
+) (domain.UnbindSpec, error) {
 	b.logger.Debug("unbinding-start", lager.Data{
 		"instance-id": instanceID,
 		"binding-id":  bindingID,
@@ -254,7 +230,7 @@ func (b *Broker) Unbind(
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
 	if err != nil {
-		return brokerapi.UnbindSpec{}, err
+		return domain.UnbindSpec{}, err
 	}
 	defer b.ReleaseServiceLock(providerCtx, lock)
 
@@ -267,7 +243,7 @@ func (b *Broker) Unbind(
 
 	unbinding, err := b.Provider.Unbind(providerCtx, unbindData)
 	if err != nil {
-		return brokerapi.UnbindSpec{}, err
+		return domain.UnbindSpec{}, err
 	}
 
 	b.logger.Debug("unbinding-success", lager.Data{
@@ -283,16 +259,16 @@ func (b *Broker) GetBinding(
 	ctx context.Context,
 	instanceID string,
 	bindingID string,
-) (brokerapi.GetBindingSpec, error) {
-	return brokerapi.GetBindingSpec{}, errors.New("not implemented")
+) (domain.GetBindingSpec, error) {
+	return domain.GetBindingSpec{}, errors.New("not implemented")
 }
 
 func (b *Broker) Update(
 	ctx context.Context,
 	instanceID string,
-	details brokerapi.UpdateDetails,
+	details domain.UpdateDetails,
 	asyncAllowed bool,
-) (brokerapi.UpdateServiceSpec, error) {
+) (domain.UpdateServiceSpec, error) {
 	b.logger.Debug("update-start", lager.Data{
 		"instance-id":   instanceID,
 		"details":       details,
@@ -300,21 +276,21 @@ func (b *Broker) Update(
 	})
 
 	if !asyncAllowed {
-		return brokerapi.UpdateServiceSpec{}, brokerapi.ErrAsyncRequired
+		return domain.UpdateServiceSpec{}, brokerapi.ErrAsyncRequired
 	}
 
 	service, err := findServiceByID(b.config.Catalog, details.ServiceID)
 	if err != nil {
-		return brokerapi.UpdateServiceSpec{}, err
+		return domain.UpdateServiceSpec{}, err
 	}
 
 	if !service.PlanUpdatable && details.PlanID != details.PreviousValues.PlanID {
-		return brokerapi.UpdateServiceSpec{}, brokerapi.ErrPlanChangeNotSupported
+		return domain.UpdateServiceSpec{}, brokerapi.ErrPlanChangeNotSupported
 	}
 
 	plan, err := findPlanByID(service, details.PlanID)
 	if err != nil {
-		return brokerapi.UpdateServiceSpec{}, err
+		return domain.UpdateServiceSpec{}, err
 	}
 
 	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
@@ -322,7 +298,7 @@ func (b *Broker) Update(
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
 	if err != nil {
-		return brokerapi.UpdateServiceSpec{}, err
+		return domain.UpdateServiceSpec{}, err
 	}
 	defer b.ReleaseServiceLock(providerCtx, lock)
 
@@ -335,7 +311,7 @@ func (b *Broker) Update(
 
 	operationData, isAsync, err := b.Provider.Update(providerCtx, updateData)
 	if err != nil {
-		return brokerapi.UpdateServiceSpec{}, err
+		return domain.UpdateServiceSpec{}, err
 	}
 
 	b.logger.Debug("update-success", lager.Data{
@@ -344,7 +320,7 @@ func (b *Broker) Update(
 		"is-async":    isAsync,
 	})
 
-	return brokerapi.UpdateServiceSpec{
+	return domain.UpdateServiceSpec{
 		IsAsync:       isAsync,
 		OperationData: operationData,
 	}, nil
@@ -353,8 +329,8 @@ func (b *Broker) Update(
 func (b *Broker) LastOperation(
 	ctx context.Context,
 	instanceID string,
-	pollDetails brokerapi.PollDetails,
-) (brokerapi.LastOperation, error) {
+	pollDetails domain.PollDetails,
+) (domain.LastOperation, error) {
 	b.logger.Debug("last-operation-start", lager.Data{
 		"instance-id":  instanceID,
 		"poll-details": pollDetails,
@@ -370,7 +346,7 @@ func (b *Broker) LastOperation(
 
 	state, description, err := b.Provider.LastOperation(providerCtx, lastOperationData)
 	if err != nil {
-		return brokerapi.LastOperation{}, err
+		return domain.LastOperation{}, err
 	}
 
 	b.logger.Debug("last-operation-success", lager.Data{
@@ -378,7 +354,7 @@ func (b *Broker) LastOperation(
 		"poll-details": pollDetails,
 	})
 
-	return brokerapi.LastOperation{
+	return domain.LastOperation{
 		State:       state,
 		Description: description,
 	}, nil
@@ -388,13 +364,13 @@ func (b *Broker) LastBindingOperation(
 	ctx context.Context,
 	instanceID string,
 	bindingID string,
-	details brokerapi.PollDetails,
-) (brokerapi.LastOperation, error) {
-	return brokerapi.LastOperation{}, errors.New("not implemented")
+	details domain.PollDetails,
+) (domain.LastOperation, error) {
+	return domain.LastOperation{}, errors.New("not implemented")
 }
 
-func (b *Broker) GetInstance(ctx context.Context, instanceID string) (brokerapi.GetInstanceDetailsSpec, error) {
-	return brokerapi.GetInstanceDetailsSpec{}, errors.New("not implemented")
+func (b *Broker) GetInstance(ctx context.Context, instanceID string) (domain.GetInstanceDetailsSpec, error) {
+	return domain.GetInstanceDetailsSpec{}, errors.New("not implemented")
 }
 
 func (b *Broker) ObtainServiceLock(

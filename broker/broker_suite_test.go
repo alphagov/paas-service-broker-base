@@ -30,7 +30,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	mockLocket, err = mock_locket_server.New("keyBasedLock", locketFixtures.Filepath)
 	Expect(err).NotTo(HaveOccurred())
-	mockLocket.Start(mockLocket.Logger, mockLocket.ListenAddress, mockLocket.Certificate, mockLocket.Handler)
+	mockLocket.Start(mockLocket.Logger, mockLocket.ListenAddress, mockLocket.Certificate)
 
 	locketLogger := lager.NewLogger("locket-test")
 	Eventually(func() error {

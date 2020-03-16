@@ -80,8 +80,10 @@ func (c Config) Validate() error {
 			return fmt.Errorf("Config error: no plans found for service %s", service.Name)
 		}
 	}
-	if c.API.Locket.Address == "" {
-		return fmt.Errorf("Config error: locket address required")
+	if c.API.Locket != nil {
+		if c.API.Locket.Address == "" {
+			return fmt.Errorf("Config error: locket address required")
+		}
 	}
 	return nil
 }
@@ -92,7 +94,7 @@ type API struct {
 	Port              string `json:"port"`
 	LogLevel          string `json:"log_level"`
 	LagerLogLevel     lager.LogLevel
-	Locket            LocketConfig `json:"locket"`
+	Locket            *LocketConfig `json:"locket"`
 }
 
 func (api API) ConvertLogLevel() (lager.LogLevel, error) {

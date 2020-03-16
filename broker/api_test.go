@@ -51,7 +51,7 @@ var _ = Describe("Broker API", func() {
 			API: API{
 				BasicAuthUsername: username,
 				BasicAuthPassword: password,
-				Locket: LocketConfig{
+				Locket: &LocketConfig{
 					Address:        mockLocket.ListenAddress,
 					CACertFile:     path.Join(locketFixtures.Filepath, "locket-server.cert.pem"),
 					ClientCertFile: path.Join(locketFixtures.Filepath, "locket-client.cert.pem"),

@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 )
@@ -62,7 +63,7 @@ var _ = Describe("Broker", func() {
 				},
 			},
 			API: API{
-				Locket: LocketConfig{
+				Locket: &LocketConfig{
 					Address:        mockLocket.ListenAddress,
 					CACertFile:     path.Join(locketFixtures.Filepath, "locket-server.cert.pem"),
 					ClientCertFile: path.Join(locketFixtures.Filepath, "locket-client.cert.pem"),
@@ -890,16 +891,68 @@ var _ = Describe("Broker", func() {
 	})
 
 	Describe("Locking", func() {
-		It("Should lock and unlock", func() {
+
+		var (
+			configWithLocket    Config
+			configWithoutLocket Config
+		)
+
+		BeforeEach(func() {
+			configWithLocket = Config{
+				Catalog: Catalog{
+					apiresponses.CatalogResponse{
+						Services: []domain.Service{service1},
+					},
+				},
+				API: API{
+					Locket: &LocketConfig{
+						Address:        mockLocket.ListenAddress,
+						CACertFile:     path.Join(locketFixtures.Filepath, "locket-server.cert.pem"),
+						ClientCertFile: path.Join(locketFixtures.Filepath, "locket-client.cert.pem"),
+						ClientKeyFile:  path.Join(locketFixtures.Filepath, "locket-client.key.pem"),
+						SkipVerify:     true,
+					},
+				},
+			}
+			configWithoutLocket = Config{
+				Catalog: Catalog{
+					apiresponses.CatalogResponse{
+						Services: []domain.Service{service1},
+					},
+				},
+				API: API{},
+			}
+		})
+
+		It("should use SimpleLock if no locket config provided", func() {
 			fakeProvider := &fakes.FakeServiceProvider{}
 			logger := lager.NewLogger("broker")
-			b, err := New(validConfig, fakeProvider, logger)
+			b, err := New(configWithoutLocket, fakeProvider, logger)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(b.LocketClient).ToNot(BeNil())
+			Expect(b.LocketClient).To(BeAssignableToTypeOf(&SimpleLock{}))
+		})
+
+		It("should not use SimpleLock if locket config provided", func() {
+			fakeProvider := &fakes.FakeServiceProvider{}
+			logger := lager.NewLogger("broker")
+			b, err := New(configWithLocket, fakeProvider, logger)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(b.LocketClient).ToNot(BeNil())
+			Expect(b.LocketClient).NotTo(BeAssignableToTypeOf(&SimpleLock{}))
+		})
+
+		DescribeTable("should lock and unlock", func(cfg Config) {
+			fakeProvider := &fakes.FakeServiceProvider{}
+			logger := lager.NewLogger("broker")
+			b, err := New(cfg, fakeProvider, logger)
 			Expect(err).NotTo(HaveOccurred())
 			s := "original"
 			wg := sync.WaitGroup{}
 			wg.Add(2)
 
 			go func() {
+				defer wg.Done()
 				By("g1 getting lock")
 				lock, err := b.ObtainServiceLock(context.Background(), instanceID, 30)
 				Expect(err).NotTo(HaveOccurred())
@@ -912,9 +965,9 @@ var _ = Describe("Broker", func() {
 				s = g1original
 
 				By("g1 done")
-				wg.Done()
 			}()
 			go func() {
+				defer wg.Done()
 				By("g2 getting lock")
 				lock, err := b.ObtainServiceLock(context.Background(), instanceID, 30)
 				Expect(err).NotTo(HaveOccurred())
@@ -927,12 +980,16 @@ var _ = Describe("Broker", func() {
 				s = g2original
 
 				By("g2 done")
-				wg.Done()
 			}()
 
 			wg.Wait()
 
 			Expect(s).To(Equal("original"))
-		})
+
+		},
+			Entry("with a locket config", configWithLocket),
+			Entry("without a locket config", configWithoutLocket),
+		)
+
 	})
 })

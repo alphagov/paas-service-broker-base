@@ -1187,8 +1187,9 @@ var _ = Describe("Broker", func() {
 			Expect(fakeProvider.LastBindingOperationCallCount()).To(Equal(1))
 			_, lastBindingOperationData := fakeProvider.LastBindingOperationArgsForCall(0)
 
-			expectedLastBindingOperationData := provider.LastOperationData{
+			expectedLastBindingOperationData := provider.LastBindingOperationData{
 				InstanceID:  instanceID,
+				BindingID:   bindingID,
 				PollDetails: pollDetails,
 			}
 

@@ -31,7 +31,7 @@ type Binder interface {
 
 type AsyncBinder interface {
 	Binder
-	LastBindingOperation(context.Context, LastOperationData) (state *domain.LastOperation, err error)
+	LastBindingOperation(context.Context, LastBindingOperationData) (state *domain.LastOperation, err error)
 	GetBinding(context.Context, GetBindData) (state *domain.GetBindingSpec, err error)
 }
 

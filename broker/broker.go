@@ -464,8 +464,9 @@ func (b *Broker) LastBindingOperation(
 	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
 	defer cancelFunc()
 
-	lastOperationData := provider.LastOperationData{
+	lastOperationData := provider.LastBindingOperationData{
 		InstanceID:  instanceID,
+		BindingID:   bindingID,
 		PollDetails: pollDetails,
 	}
 

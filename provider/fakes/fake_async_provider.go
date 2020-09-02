@@ -52,11 +52,11 @@ type FakeAsyncProvider struct {
 		result1 *domain.GetBindingSpec
 		result2 error
 	}
-	LastBindingOperationStub        func(context.Context, provider.LastOperationData) (*domain.LastOperation, error)
+	LastBindingOperationStub        func(context.Context, provider.LastBindingOperationData) (*domain.LastOperation, error)
 	lastBindingOperationMutex       sync.RWMutex
 	lastBindingOperationArgsForCall []struct {
 		arg1 context.Context
-		arg2 provider.LastOperationData
+		arg2 provider.LastBindingOperationData
 	}
 	lastBindingOperationReturns struct {
 		result1 *domain.LastOperation
@@ -318,12 +318,12 @@ func (fake *FakeAsyncProvider) GetBindingReturnsOnCall(i int, result1 *domain.Ge
 	}{result1, result2}
 }
 
-func (fake *FakeAsyncProvider) LastBindingOperation(arg1 context.Context, arg2 provider.LastOperationData) (*domain.LastOperation, error) {
+func (fake *FakeAsyncProvider) LastBindingOperation(arg1 context.Context, arg2 provider.LastBindingOperationData) (*domain.LastOperation, error) {
 	fake.lastBindingOperationMutex.Lock()
 	ret, specificReturn := fake.lastBindingOperationReturnsOnCall[len(fake.lastBindingOperationArgsForCall)]
 	fake.lastBindingOperationArgsForCall = append(fake.lastBindingOperationArgsForCall, struct {
 		arg1 context.Context
-		arg2 provider.LastOperationData
+		arg2 provider.LastBindingOperationData
 	}{arg1, arg2})
 	fake.recordInvocation("LastBindingOperation", []interface{}{arg1, arg2})
 	fake.lastBindingOperationMutex.Unlock()
@@ -343,13 +343,13 @@ func (fake *FakeAsyncProvider) LastBindingOperationCallCount() int {
 	return len(fake.lastBindingOperationArgsForCall)
 }
 
-func (fake *FakeAsyncProvider) LastBindingOperationCalls(stub func(context.Context, provider.LastOperationData) (*domain.LastOperation, error)) {
+func (fake *FakeAsyncProvider) LastBindingOperationCalls(stub func(context.Context, provider.LastBindingOperationData) (*domain.LastOperation, error)) {
 	fake.lastBindingOperationMutex.Lock()
 	defer fake.lastBindingOperationMutex.Unlock()
 	fake.LastBindingOperationStub = stub
 }
 
-func (fake *FakeAsyncProvider) LastBindingOperationArgsForCall(i int) (context.Context, provider.LastOperationData) {
+func (fake *FakeAsyncProvider) LastBindingOperationArgsForCall(i int) (context.Context, provider.LastBindingOperationData) {
 	fake.lastBindingOperationMutex.RLock()
 	defer fake.lastBindingOperationMutex.RUnlock()
 	argsForCall := fake.lastBindingOperationArgsForCall[i]

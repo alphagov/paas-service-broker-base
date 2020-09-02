@@ -44,6 +44,12 @@ type LastOperationData struct {
 	PollDetails domain.PollDetails
 }
 
+type LastBindingOperationData struct {
+	InstanceID string
+	BindingID string
+	PollDetails domain.PollDetails
+}
+
 type GetBindData struct {
 	InstanceID string
 	BindingID  string

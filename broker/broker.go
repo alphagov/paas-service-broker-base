@@ -16,18 +16,25 @@ import (
 	"github.com/pivotal-cf/brokerapi/domain"
 )
 
+var (
+	ErrNilResponse                  = fmt.Errorf("invalid nil response from provider")
+	ErrNotImplemented               = fmt.Errorf("provider does not implement service updates")
+	ErrAsyncProvisionNotImplemented = fmt.Errorf("provider returned async response but does not implement AsyncProvisioner")
+	ErrAsyncBindNotImplemented      = fmt.Errorf("provider returned async response but does not implement AsyncBinder")
+)
+
 const (
 	locketMaxTTL = 30
 )
 
 type Broker struct {
 	config       Config
-	Provider     provider.ServiceProvider
+	Provider     provider.Provider
 	logger       lager.Logger
 	LocketClient locket_models.LocketClient
 }
 
-func New(config Config, serviceProvider provider.ServiceProvider, logger lager.Logger) (*Broker, error) {
+func New(config Config, serviceProvider provider.Provider, logger lager.Logger) (*Broker, error) {
 	b := &Broker{
 		config:       config,
 		Provider:     serviceProvider,
@@ -45,7 +52,17 @@ func New(config Config, serviceProvider provider.ServiceProvider, logger lager.L
 }
 
 func (b *Broker) Services(ctx context.Context) ([]domain.Service, error) {
-	return b.config.Catalog.Catalog.Services, nil
+	services := []domain.Service{}
+	for _, svc := range b.config.Catalog.Catalog.Services {
+		if _, ok := b.Provider.(provider.Binder); ok {
+			svc.Bindable = true
+		}
+		if _, ok := b.Provider.(provider.AsyncBinder); ok {
+			svc.BindingsRetrievable = true
+		}
+		services = append(services, svc)
+	}
+	return services, nil
 }
 
 func (b *Broker) Provision(
@@ -90,23 +107,35 @@ func (b *Broker) Provision(
 		Plan:       plan,
 	}
 
-	dashboardURL, operationData, isAsync, err := b.Provider.Provision(providerCtx, provisionData)
+	provisioner, ok := b.Provider.(provider.Provisioner)
+	if !ok {
+		// provider does not implement provider.Provisioner so this is a no-op
+		return domain.ProvisionedServiceSpec{
+			IsAsync:       false,
+			DashboardURL:  "",
+			OperationData: "no-op",
+		}, nil
+	}
+
+	res, err := provisioner.Provision(providerCtx, provisionData)
 	if err != nil {
 		return domain.ProvisionedServiceSpec{}, err
+	}
+	if res == nil {
+		return domain.ProvisionedServiceSpec{}, ErrNilResponse
+	}
+	if _, asyncImplemented := b.Provider.(provider.AsyncProvisioner); res.IsAsync && !asyncImplemented {
+		return domain.ProvisionedServiceSpec{}, ErrAsyncProvisionNotImplemented
 	}
 
 	b.logger.Debug("provision-success", lager.Data{
 		"instance-id":    instanceID,
 		"details":        details,
-		"operation-data": operationData,
-		"is-async":       isAsync,
+		"operation-data": res.OperationData,
+		"is-async":       res.IsAsync,
 	})
 
-	return domain.ProvisionedServiceSpec{
-		IsAsync:       isAsync,
-		DashboardURL:  dashboardURL,
-		OperationData: operationData,
-	}, nil
+	return *res, nil
 }
 
 func (b *Broker) Deprovision(
@@ -151,22 +180,33 @@ func (b *Broker) Deprovision(
 		Details:    details,
 	}
 
-	operationData, isAsync, err := b.Provider.Deprovision(providerCtx, deprovisionData)
+	provisioner, ok := b.Provider.(provider.Provisioner)
+	if !ok {
+		// provider does not implement provider.Provisioner so this is a no-op
+		return domain.DeprovisionServiceSpec{
+			IsAsync:       false,
+			OperationData: "no-op",
+		}, nil
+	}
+	res, err := provisioner.Deprovision(providerCtx, deprovisionData)
 	if err != nil {
 		return domain.DeprovisionServiceSpec{}, err
+	}
+	if res == nil {
+		return domain.DeprovisionServiceSpec{}, ErrNilResponse
+	}
+	if _, asyncImplemented := b.Provider.(provider.AsyncProvisioner); res.IsAsync && !asyncImplemented {
+		return domain.DeprovisionServiceSpec{}, ErrAsyncProvisionNotImplemented
 	}
 
 	b.logger.Debug("deprovision-success", lager.Data{
 		"instance-id":    instanceID,
 		"details":        details,
-		"operation-data": operationData,
-		"is-async":       isAsync,
+		"operation-data": res.OperationData,
+		"is-async":       res.IsAsync,
 	})
 
-	return domain.DeprovisionServiceSpec{
-		IsAsync:       isAsync,
-		OperationData: operationData,
-	}, nil
+	return *res, nil
 }
 
 func (b *Broker) Bind(
@@ -198,9 +238,23 @@ func (b *Broker) Bind(
 		AsyncAllowed: asyncAllowed,
 	}
 
-	binding, err := b.Provider.Bind(providerCtx, bindData)
+	binder, ok := b.Provider.(provider.Binder)
+	if !ok {
+		// provider does not implement binding operations so this is a no-op
+		return domain.Binding{
+			IsAsync:       false,
+			OperationData: "no-op",
+		}, nil
+	}
+	res, err := binder.Bind(providerCtx, bindData)
 	if err != nil {
 		return domain.Binding{}, err
+	}
+	if res == nil {
+		return domain.Binding{}, ErrNilResponse
+	}
+	if _, asyncImplemented := b.Provider.(provider.AsyncBinder); res.IsAsync && !asyncImplemented {
+		return domain.Binding{}, ErrAsyncBindNotImplemented
 	}
 
 	b.logger.Debug("binding-success", lager.Data{
@@ -209,7 +263,7 @@ func (b *Broker) Bind(
 		"details":     details,
 	})
 
-	return binding, nil
+	return *res, nil
 }
 
 func (b *Broker) Unbind(
@@ -241,9 +295,23 @@ func (b *Broker) Unbind(
 		AsyncAllowed: asyncAllowed,
 	}
 
-	unbinding, err := b.Provider.Unbind(providerCtx, unbindData)
+	binder, ok := b.Provider.(provider.Binder)
+	if !ok {
+		// provider does not implement binding operations so this is a no-op
+		return domain.UnbindSpec{
+			IsAsync:       false,
+			OperationData: "no-op",
+		}, nil
+	}
+	res, err := binder.Unbind(providerCtx, unbindData)
 	if err != nil {
 		return domain.UnbindSpec{}, err
+	}
+	if res == nil {
+		return domain.UnbindSpec{}, ErrNilResponse
+	}
+	if _, asyncImplemented := b.Provider.(provider.AsyncBinder); res.IsAsync && !asyncImplemented {
+		return domain.UnbindSpec{}, ErrAsyncBindNotImplemented
 	}
 
 	b.logger.Debug("unbinding-success", lager.Data{
@@ -252,7 +320,7 @@ func (b *Broker) Unbind(
 		"details":     details,
 	})
 
-	return unbinding, nil
+	return *res, nil
 }
 
 func (b *Broker) GetBinding(
@@ -260,7 +328,38 @@ func (b *Broker) GetBinding(
 	instanceID string,
 	bindingID string,
 ) (domain.GetBindingSpec, error) {
-	return domain.GetBindingSpec{}, errors.New("not implemented")
+	b.logger.Debug("get-binding-start", lager.Data{
+		"instance-id": instanceID,
+		"binding-id":  bindingID,
+	})
+
+	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
+	defer cancelFunc()
+
+	data := provider.GetBindData{
+		InstanceID: instanceID,
+		BindingID:  bindingID,
+	}
+
+	binder, ok := b.Provider.(provider.AsyncBinder)
+	if !ok {
+		// provider does not implement binding operations so this is a no-op
+		return domain.GetBindingSpec{}, ErrNotImplemented
+	}
+	res, err := binder.GetBinding(providerCtx, data)
+	if err != nil {
+		return domain.GetBindingSpec{}, err
+	}
+	if res == nil {
+		return domain.GetBindingSpec{}, ErrNilResponse
+	}
+
+	b.logger.Debug("get-binding-success", lager.Data{
+		"instance-id": instanceID,
+		"binding-id":  bindingID,
+	})
+
+	return *res, nil
 }
 
 func (b *Broker) Update(
@@ -309,21 +408,26 @@ func (b *Broker) Update(
 		Plan:       plan,
 	}
 
-	operationData, isAsync, err := b.Provider.Update(providerCtx, updateData)
+	updater, ok := b.Provider.(provider.Updater)
+	if !ok {
+		// provider does not implement update operations so this is an error
+		return domain.UpdateServiceSpec{}, ErrNotImplemented
+	}
+	res, err := updater.Update(providerCtx, updateData)
 	if err != nil {
 		return domain.UpdateServiceSpec{}, err
+	}
+	if res == nil {
+		return domain.UpdateServiceSpec{}, ErrNilResponse
 	}
 
 	b.logger.Debug("update-success", lager.Data{
 		"instance-id": instanceID,
 		"details":     details,
-		"is-async":    isAsync,
+		"is-async":    res.IsAsync,
 	})
 
-	return domain.UpdateServiceSpec{
-		IsAsync:       isAsync,
-		OperationData: operationData,
-	}, nil
+	return *res, nil
 }
 
 func (b *Broker) LastOperation(
@@ -344,9 +448,17 @@ func (b *Broker) LastOperation(
 		PollDetails: pollDetails,
 	}
 
-	state, description, err := b.Provider.LastOperation(providerCtx, lastOperationData)
+	provisioner, ok := b.Provider.(provider.AsyncProvisioner)
+	if !ok {
+		// provider does not implement async provisioning so this is an error
+		return domain.LastOperation{}, ErrNotImplemented
+	}
+	res, err := provisioner.LastOperation(providerCtx, lastOperationData)
 	if err != nil {
 		return domain.LastOperation{}, err
+	}
+	if res == nil {
+		return domain.LastOperation{}, ErrNilResponse
 	}
 
 	b.logger.Debug("last-operation-success", lager.Data{
@@ -354,19 +466,42 @@ func (b *Broker) LastOperation(
 		"poll-details": pollDetails,
 	})
 
-	return domain.LastOperation{
-		State:       state,
-		Description: description,
-	}, nil
+	return *res, nil
 }
 
 func (b *Broker) LastBindingOperation(
 	ctx context.Context,
 	instanceID string,
 	bindingID string,
-	details domain.PollDetails,
+	pollDetails domain.PollDetails,
 ) (domain.LastOperation, error) {
-	return domain.LastOperation{}, errors.New("not implemented")
+	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
+	defer cancelFunc()
+
+	lastOperationData := provider.LastOperationData{
+		InstanceID:  instanceID,
+		PollDetails: pollDetails,
+	}
+
+	binder, ok := b.Provider.(provider.AsyncBinder)
+	if !ok {
+		// provider does not implement async binding so this is an error
+		return domain.LastOperation{}, ErrNotImplemented
+	}
+	res, err := binder.LastBindingOperation(providerCtx, lastOperationData)
+	if err != nil {
+		return domain.LastOperation{}, err
+	}
+	if res == nil {
+		return domain.LastOperation{}, ErrNilResponse
+	}
+
+	b.logger.Debug("last-binding-operation-success", lager.Data{
+		"instance-id":  instanceID,
+		"poll-details": pollDetails,
+	})
+
+	return *res, nil
 }
 
 func (b *Broker) GetInstance(ctx context.Context, instanceID string) (domain.GetInstanceDetailsSpec, error) {

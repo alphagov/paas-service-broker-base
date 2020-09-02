@@ -192,6 +192,17 @@ var _ = Describe("Broker", func() {
 			})
 		})
 
+		Context("when provider does not implement provisioning", func () {
+			It("will return error", func () {
+				var fakeProvider interface{}
+				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = b.Provision(context.Background(), instanceID, validProvisionDetails, true)
+				Expect(err).To(MatchError(ErrNotImplemented))
+			})
+		})
+
 		It("logs a debug message when provisioning succeeds", func() {
 			fakeProvider := &fakes.FakeAsyncProvider{}
 			fakeProvider.ProvisionReturns(&domain.ProvisionedServiceSpec{}, nil)
@@ -405,6 +416,17 @@ var _ = Describe("Broker", func() {
 			})
 		})
 
+		Context("when provider does not implement provisioning", func () {
+			It("will return error", func () {
+				var fakeProvider interface{}
+				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, true)
+				Expect(err).To(MatchError(ErrNotImplemented))
+			})
+		})
+
 		It("logs a debug message when deprovisioning succeeds", func() {
 			fakeProvider := &fakes.FakeAsyncProvider{}
 			fakeProvider.DeprovisionReturns(&domain.DeprovisionServiceSpec{}, nil)
@@ -531,6 +553,17 @@ var _ = Describe("Broker", func() {
 			})
 		})
 
+		Context("when provider does not implement binding", func () {
+			It("will return error", func () {
+				var fakeProvider interface{}
+				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = b.Bind(context.Background(), instanceID, bindingID, validBindDetails, true)
+				Expect(err).To(MatchError(ErrNotImplemented))
+			})
+		})
+
 		It("logs a debug message when binding succeeds", func() {
 			fakeProvider := &fakes.FakeAsyncProvider{}
 			fakeProvider.BindReturns(&domain.Binding{}, nil)
@@ -629,6 +662,17 @@ var _ = Describe("Broker", func() {
 			_, err = b.GetBinding(context.Background(), instanceID, bindingID)
 
 			Expect(err).To(MatchError("ERROR BINDING"))
+		})
+
+		Context("when provider does not implement async binding", func () {
+			It("will return error", func () {
+				var fakeProvider interface{}
+				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = b.GetBinding(context.Background(), instanceID, bindingID)
+				Expect(err).To(MatchError(ErrNotImplemented))
+			})
 		})
 
 		It("logs a debug message when binding succeeds", func() {
@@ -744,6 +788,17 @@ var _ = Describe("Broker", func() {
 				_, err = b.Unbind(context.Background(), instanceID, bindingID, validUnbindDetails, true)
 
 				Expect(err).To(MatchError(ErrAsyncBindNotImplemented))
+			})
+		})
+
+		Context("when provider does not implement binding", func () {
+			It("will return error", func () {
+				var fakeProvider interface{}
+				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = b.Unbind(context.Background(), instanceID, bindingID, validUnbindDetails, true)
+				Expect(err).To(MatchError(ErrNotImplemented))
 			})
 		})
 
@@ -931,6 +986,17 @@ var _ = Describe("Broker", func() {
 			Expect(err).To(MatchError("ERROR UPDATING"))
 		})
 
+		Context("when provider does not implement updating", func () {
+			It("will return error", func () {
+				var fakeProvider interface{}
+				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = b.Update(context.Background(), instanceID, updatePlanDetails, true)
+				Expect(err).To(MatchError(ErrNotImplemented))
+			})
+		})
+
 		It("logs a debug message when updating succeeds", func() {
 			fakeProvider := &fakes.FakeAsyncProvider{}
 			fakeProvider.UpdateReturns(&domain.UpdateServiceSpec{}, nil)
@@ -1029,6 +1095,17 @@ var _ = Describe("Broker", func() {
 			Expect(err).To(MatchError("ERROR LAST OPERATION"))
 		})
 
+		Context("when provider does not implement last operation", func () {
+			It("will return error", func () {
+				var fakeProvider interface{}
+				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = b.LastOperation(context.Background(), instanceID, pollDetails)
+				Expect(err).To(MatchError(ErrNotImplemented))
+			})
+		})
+
 		It("logs a debug message when last operation check succeeds", func() {
 			fakeProvider := &fakes.FakeAsyncProvider{}
 			fakeProvider.LastOperationReturns(&domain.LastOperation{}, nil)
@@ -1053,6 +1130,117 @@ var _ = Describe("Broker", func() {
 			}, nil)
 
 			Expect(b.LastOperation(context.Background(), instanceID, pollDetails)).
+				To(Equal(domain.LastOperation{
+					State:       brokerapi.Succeeded,
+					Description: "Provision successful",
+				}))
+		})
+	})
+
+	Describe("LastBindingOperation", func() {
+		var pollDetails domain.PollDetails
+		var bindingID string
+
+		BeforeEach(func() {
+			pollDetails = domain.PollDetails{
+				OperationData: `{"operation_type": "provision"}`,
+			}
+			bindingID = "bindingID"
+		})
+
+		It("logs a debug message when the last binding operation check begins", func() {
+			fakeProvider := &fakes.FakeAsyncProvider{}
+			fakeProvider.LastBindingOperationReturns(&domain.LastOperation{}, nil)
+			logger := lager.NewLogger("broker")
+			log := gbytes.NewBuffer()
+			logger.RegisterSink(lager.NewWriterSink(log, lager.DEBUG))
+			b, err := New(validConfig, fakeProvider, logger)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, _ = b.LastBindingOperation(context.Background(), instanceID, bindingID, pollDetails)
+
+			Expect(log).To(gbytes.Say("last-binding-operation-start"))
+		})
+
+		It("sets a deadline by which the last operation request should complete", func() {
+			fakeProvider := &fakes.FakeAsyncProvider{}
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
+
+			_, _ = b.LastBindingOperation(context.Background(), instanceID, bindingID, pollDetails)
+
+			Expect(fakeProvider.LastBindingOperationCallCount()).To(Equal(1))
+			receivedContext, _ := fakeProvider.LastBindingOperationArgsForCall(0)
+
+			_, hasDeadline := receivedContext.Deadline()
+
+			Expect(hasDeadline).To(BeTrue())
+		})
+
+		It("passes the correct data to the Provider", func() {
+			fakeProvider := &fakes.FakeAsyncProvider{}
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
+
+			_, _ = b.LastBindingOperation(context.Background(), instanceID, bindingID, pollDetails)
+
+			Expect(fakeProvider.LastBindingOperationCallCount()).To(Equal(1))
+			_, lastBindingOperationData := fakeProvider.LastBindingOperationArgsForCall(0)
+
+			expectedLastBindingOperationData := provider.LastOperationData{
+				InstanceID:  instanceID,
+				PollDetails: pollDetails,
+			}
+
+			Expect(lastBindingOperationData).To(Equal(expectedLastBindingOperationData))
+		})
+
+		It("errors if last binding operation fails", func() {
+			fakeProvider := &fakes.FakeAsyncProvider{}
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
+			fakeProvider.LastBindingOperationReturns(nil, errors.New("ERROR LAST OPERATION"))
+
+			_, err = b.LastBindingOperation(context.Background(), instanceID, bindingID, pollDetails)
+
+			Expect(err).To(MatchError("ERROR LAST OPERATION"))
+		})
+
+		Context("when provider does not implement last operation", func () {
+			It("will return error", func () {
+				var fakeProvider interface{}
+				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = b.LastBindingOperation(context.Background(), instanceID, bindingID, pollDetails)
+				Expect(err).To(MatchError(ErrNotImplemented))
+			})
+		})
+
+		It("logs a debug message when last operation check succeeds", func() {
+			fakeProvider := &fakes.FakeAsyncProvider{}
+			fakeProvider.LastBindingOperationReturns(&domain.LastOperation{}, nil)
+			logger := lager.NewLogger("broker")
+			log := gbytes.NewBuffer()
+			logger.RegisterSink(lager.NewWriterSink(log, lager.DEBUG))
+			b, err := New(validConfig, fakeProvider, logger)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, _ = b.LastBindingOperation(context.Background(), instanceID, bindingID, pollDetails)
+
+			Expect(log).To(gbytes.Say("last-binding-operation-success"))
+		})
+
+		It("returns the last operation status", func() {
+			fakeProvider := &fakes.FakeAsyncProvider{}
+			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+			Expect(err).NotTo(HaveOccurred())
+			fakeProvider.LastBindingOperationReturns(&domain.LastOperation{
+				State:       brokerapi.Succeeded,
+				Description: "Provision successful",
+			}, nil)
+
+			Expect(b.LastBindingOperation(context.Background(), instanceID, bindingID, pollDetails)).
 				To(Equal(domain.LastOperation{
 					State:       brokerapi.Succeeded,
 					Description: "Provision successful",

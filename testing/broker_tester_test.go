@@ -8,7 +8,7 @@ import (
 	"github.com/pivotal-cf/brokerapi"
 )
 
-//go:generate counterfeiter -o fakes/fake_http_handler.go net/http.Handler
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -o fakes/fake_http_handler.go net/http.Handler
 
 var _ = Describe("Broker Tester", func() {
 	Context("makes HTTP requests to the in-memory broker API", func() {

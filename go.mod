@@ -31,6 +31,7 @@ require (
 	github.com/kr/pretty v0.2.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.7 // indirect
+	github.com/maxbrunsfeld/counterfeiter/v6 v6.2.3 // indirect
 	github.com/miekg/dns v1.1.31 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/mitchellh/gox v0.4.0 // indirect

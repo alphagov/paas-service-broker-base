@@ -177,6 +177,21 @@ var _ = Describe("Broker", func() {
 			Expect(err).To(MatchError("ERROR PROVISIONING"))
 		})
 
+		Context("when provider does not implement async", func() {
+			It("does not allow returning async true", func () {
+				fakeProvider := &fakes.FakeProvisioner{}
+				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+				Expect(err).NotTo(HaveOccurred())
+				fakeProvider.ProvisionReturns(&domain.ProvisionedServiceSpec{
+					IsAsync: true,
+				}, nil)
+
+				_, err = b.Provision(context.Background(), instanceID, validProvisionDetails, true)
+
+				Expect(err).To(MatchError(ErrAsyncProvisionNotImplemented))
+			})
+		})
+
 		It("logs a debug message when provisioning succeeds", func() {
 			fakeProvider := &fakes.FakeAsyncProvider{}
 			fakeProvider.ProvisionReturns(&domain.ProvisionedServiceSpec{}, nil)
@@ -375,6 +390,21 @@ var _ = Describe("Broker", func() {
 			Expect(err).To(MatchError("ERROR DEPROVISIONING"))
 		})
 
+		Context("when provider does not implement async", func() {
+			It("does not allow returning async true", func () {
+				fakeProvider := &fakes.FakeProvisioner{}
+				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+				Expect(err).NotTo(HaveOccurred())
+				fakeProvider.DeprovisionReturns(&domain.DeprovisionServiceSpec{
+					IsAsync: true,
+				}, nil)
+
+				_, err = b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, true)
+
+				Expect(err).To(MatchError(ErrAsyncProvisionNotImplemented))
+			})
+		})
+
 		It("logs a debug message when deprovisioning succeeds", func() {
 			fakeProvider := &fakes.FakeAsyncProvider{}
 			fakeProvider.DeprovisionReturns(&domain.DeprovisionServiceSpec{}, nil)
@@ -484,6 +514,21 @@ var _ = Describe("Broker", func() {
 			_, err = b.Bind(context.Background(), instanceID, bindingID, validBindDetails, true)
 
 			Expect(err).To(MatchError("ERROR BINDING"))
+		})
+
+		Context("when provider does not implement async binding", func() {
+			It("does not allow returning async true", func () {
+				fakeProvider := &fakes.FakeBinder{}
+				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+				Expect(err).NotTo(HaveOccurred())
+				fakeProvider.BindReturns(&domain.Binding{
+					IsAsync: true,
+				}, nil)
+
+				_, err = b.Bind(context.Background(), instanceID, bindingID, validBindDetails, true)
+
+				Expect(err).To(MatchError(ErrAsyncBindNotImplemented))
+			})
 		})
 
 		It("logs a debug message when binding succeeds", func() {
@@ -684,6 +729,22 @@ var _ = Describe("Broker", func() {
 			_, err = b.Unbind(context.Background(), instanceID, bindingID, validUnbindDetails, true)
 
 			Expect(err).To(MatchError("ERROR UNBINDING"))
+		})
+
+
+		Context("when provider does not implement async binding", func() {
+			It("does not allow returning async true", func () {
+				fakeProvider := &fakes.FakeBinder{}
+				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
+				Expect(err).NotTo(HaveOccurred())
+				fakeProvider.UnbindReturns(&domain.UnbindSpec{
+					IsAsync: true,
+				}, nil)
+
+				_, err = b.Unbind(context.Background(), instanceID, bindingID, validUnbindDetails, true)
+
+				Expect(err).To(MatchError(ErrAsyncBindNotImplemented))
+			})
 		})
 
 		It("logs a debug message when unbinding succeeds", func() {

@@ -576,7 +576,7 @@ var _ = Describe("Broker", func() {
 
 		It("errors if get binding fails", func() {
 			fakeProvider := &fakes.FakeAsyncProvider{}
-			fakeProvider.BindReturns(nil, errors.New("ERROR BINDING"))
+			fakeProvider.GetBindingReturns(nil, errors.New("ERROR BINDING"))
 			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 			Expect(err).NotTo(HaveOccurred())
 
@@ -607,9 +607,8 @@ var _ = Describe("Broker", func() {
 			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(b.GetBinding(context.Background(), instanceID, bindingID)).To(Equal(domain.Binding{
+			Expect(b.GetBinding(context.Background(), instanceID, bindingID)).To(Equal(domain.GetBindingSpec{
 				Credentials: "some-value-of-interface{}-type",
-				IsAsync:     true,
 			}))
 		})
 	})

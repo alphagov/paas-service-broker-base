@@ -112,6 +112,36 @@ func (bt BrokerTester) LastOperation(instanceID, serviceID, planID, operation st
 	)
 }
 
+func (bt BrokerTester) LastBindingOperation(instanceID, bindingID, serviceID, planID, operation string) *httptest.ResponseRecorder {
+	urlValues := url.Values{}
+	if serviceID != "" {
+		urlValues.Add("service_id", serviceID)
+	}
+	if planID != "" {
+		urlValues.Add("plan_id", planID)
+	}
+	if operation != "" {
+		urlValues.Add("operation", operation)
+	}
+	return bt.Get(
+		fmt.Sprintf("/v2/service_instances/%s/service_bindings/%s/last_operation", instanceID, bindingID),
+		urlValues,
+	)
+}
+
+func (bt BrokerTester) GetBinding(instanceID, bindingID, serviceID, planID string) *httptest.ResponseRecorder {
+	urlValues := url.Values{}
+	if serviceID != "" {
+		urlValues.Add("service_id", serviceID)
+	}
+	if planID != "" {
+		urlValues.Add("plan_id", planID)
+	}
+	return bt.Get(
+		fmt.Sprintf("/v2/service_instances/%s/service_bindings/%s", instanceID, bindingID),
+		urlValues,
+	)
+}
 func (bt BrokerTester) Get(path string, params url.Values) *httptest.ResponseRecorder {
 	return bt.do(bt.newRequest("GET", path, nil, params))
 }

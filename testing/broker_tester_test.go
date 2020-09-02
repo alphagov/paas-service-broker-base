@@ -77,6 +77,22 @@ var _ = Describe("Broker Tester", func() {
 			Expect(getRequestMethod(&brokerAPI)).To(Equal("GET"))
 			Expect(getRequestPath(&brokerAPI)).To(Equal("/v2/service_instances/instance_id/last_operation"))
 		})
+
+		It("'LastBindingOperation' makes a GET request to the right place", func() {
+			brokerTester.LastBindingOperation("instance_id", "binding_id", "service_id", "plan_id", "operation")
+
+			Expect(brokerAPI.ServeHTTPCallCount()).To(Equal(1))
+			Expect(getRequestMethod(&brokerAPI)).To(Equal("GET"))
+			Expect(getRequestPath(&brokerAPI)).To(Equal("/v2/service_instances/instance_id/service_bindings/binding_id/last_operation"))
+		})
+
+		It("'GetBinding' makes a GET request to the right place", func() {
+			brokerTester.GetBinding("instance_id", "binding_id", "service_id", "plan_id")
+
+			Expect(brokerAPI.ServeHTTPCallCount()).To(Equal(1))
+			Expect(getRequestMethod(&brokerAPI)).To(Equal("GET"))
+			Expect(getRequestPath(&brokerAPI)).To(Equal("/v2/service_instances/instance_id/service_bindings/binding_id"))
+		})
 	})
 })
 

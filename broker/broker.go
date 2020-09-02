@@ -551,7 +551,11 @@ func (b *Broker) ObtainServiceLock(
 		// We should check for an acceptable error here, but in practice there are
 		// many errors from grpc/locket/sqldb we should just try 15 times
 
-		time.Sleep(1 * time.Second)
+		delay := DefaultLocketRetryInterval
+		if b.config.API.Locket.RetryInterval > 0 {
+			delay = b.config.API.Locket.RetryInterval
+		}
+		time.Sleep(delay)
 	}
 
 	if err != nil {

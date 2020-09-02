@@ -69,6 +69,7 @@ var _ = Describe("Broker", func() {
 					ClientCertFile: path.Join(locketFixtures.Filepath, "locket-client.cert.pem"),
 					ClientKeyFile:  path.Join(locketFixtures.Filepath, "locket-client.key.pem"),
 					SkipVerify:     true,
+					RetryInterval:  time.Millisecond * 1,
 				},
 			},
 		}

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"time"
 
 	"code.cloudfoundry.org/lager"
 	. "github.com/alphagov/paas-service-broker-base/broker"
@@ -57,6 +58,7 @@ var _ = Describe("Broker API", func() {
 					ClientCertFile: path.Join(locketFixtures.Filepath, "locket-client.cert.pem"),
 					ClientKeyFile:  path.Join(locketFixtures.Filepath, "locket-client.key.pem"),
 					SkipVerify:     true,
+					RetryInterval:  time.Millisecond * 1,
 				},
 			},
 			Catalog: Catalog{apiresponses.CatalogResponse{

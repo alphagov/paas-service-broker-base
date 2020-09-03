@@ -34,6 +34,8 @@ type Broker struct {
 	LocketClient locket_models.LocketClient
 }
 
+var _ domain.ServiceBroker = &Broker{}
+
 func New(config Config, serviceProvider provider.Provider, logger lager.Logger) (*Broker, error) {
 	b := &Broker{
 		config:       config,

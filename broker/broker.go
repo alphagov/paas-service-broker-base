@@ -23,6 +23,12 @@ var (
 	ErrAsyncBindNotImplemented      = fmt.Errorf("provider returned async response but does not implement AsyncBinder")
 )
 
+var (
+	// DefaultContextTimeout is the default timeout in which broker requests
+	// (and therefore Provider implementations) should return within
+	DefaultContextTimeout = time.Second * 60
+)
+
 const (
 	locketMaxTTL = 30
 )
@@ -93,7 +99,7 @@ func (b *Broker) Provision(
 		return domain.ProvisionedServiceSpec{}, err
 	}
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
 	defer cancelFunc()
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
@@ -151,7 +157,7 @@ func (b *Broker) Deprovision(
 		return domain.DeprovisionServiceSpec{}, brokerapi.ErrAsyncRequired
 	}
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
 	defer cancelFunc()
 
 	service, err := findServiceByID(b.config.Catalog, details.ServiceID)
@@ -215,7 +221,7 @@ func (b *Broker) Bind(
 		"details":     details,
 	})
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
 	defer cancelFunc()
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
@@ -268,7 +274,7 @@ func (b *Broker) Unbind(
 		"details":     details,
 	})
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
 	defer cancelFunc()
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
@@ -318,7 +324,7 @@ func (b *Broker) GetBinding(
 		"binding-id":  bindingID,
 	})
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
 	defer cancelFunc()
 
 	data := provider.GetBindData{
@@ -376,7 +382,7 @@ func (b *Broker) Update(
 		return domain.UpdateServiceSpec{}, err
 	}
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
 	defer cancelFunc()
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
@@ -423,7 +429,7 @@ func (b *Broker) LastOperation(
 		"poll-details": pollDetails,
 	})
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
 	defer cancelFunc()
 
 	lastOperationData := provider.LastOperationData{
@@ -463,7 +469,7 @@ func (b *Broker) LastBindingOperation(
 		"poll-details": pollDetails,
 	})
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, 60*time.Second)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
 	defer cancelFunc()
 
 	lastOperationData := provider.LastBindingOperationData{

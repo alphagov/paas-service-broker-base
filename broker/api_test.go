@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"time"
 
 	"code.cloudfoundry.org/lager"
 	. "github.com/alphagov/paas-service-broker-base/broker"
@@ -34,7 +35,7 @@ var _ = Describe("Broker API", func() {
 		password string
 
 		logger       lager.Logger
-		fakeProvider *fakes.FakeServiceProvider
+		fakeProvider *fakes.FakeAsyncProvider
 
 		broker       *Broker
 		brokerAPI    http.Handler
@@ -57,16 +58,17 @@ var _ = Describe("Broker API", func() {
 					ClientCertFile: path.Join(locketFixtures.Filepath, "locket-client.cert.pem"),
 					ClientKeyFile:  path.Join(locketFixtures.Filepath, "locket-client.key.pem"),
 					SkipVerify:     true,
+					RetryInterval:  time.Millisecond * 1,
 				},
 			},
 			Catalog: Catalog{apiresponses.CatalogResponse{
 				Services: []domain.Service{
-					domain.Service{
+					{
 						ID:            service1,
 						Name:          service1,
 						PlanUpdatable: true,
 						Plans: []domain.ServicePlan{
-							domain.ServicePlan{
+							{
 								ID:   plan1,
 								Name: plan1,
 							},
@@ -78,7 +80,7 @@ var _ = Describe("Broker API", func() {
 		}
 		logger = lager.NewLogger("broker-api")
 		logger.RegisterSink(lager.NewWriterSink(GinkgoWriter, lager.DEBUG))
-		fakeProvider = &fakes.FakeServiceProvider{}
+		fakeProvider = &fakes.FakeAsyncProvider{}
 		broker, err = New(validConfig, fakeProvider, logger)
 		Expect(err).NotTo(HaveOccurred())
 		brokerAPI = NewAPI(broker, logger, validConfig)
@@ -112,7 +114,11 @@ var _ = Describe("Broker API", func() {
 
 	Describe("Provision", func() {
 		It("accepts a provision request", func() {
-			fakeProvider.ProvisionReturns("dashboardURL", "operationData", true, nil)
+			fakeProvider.ProvisionReturns(&domain.ProvisionedServiceSpec{
+				DashboardURL:  "dashboardURL",
+				OperationData: "operationData",
+				IsAsync:       true,
+			}, nil)
 			res := brokerTester.Provision(
 				instanceID,
 				broker_tester.RequestBody{
@@ -137,7 +143,7 @@ var _ = Describe("Broker API", func() {
 		})
 
 		It("responds with an internal server error if the provider errors", func() {
-			fakeProvider.ProvisionReturns("", "", true, errors.New("some provisioning error"))
+			fakeProvider.ProvisionReturns(&domain.ProvisionedServiceSpec{}, errors.New("some provisioning error"))
 			res := brokerTester.Provision(
 				instanceID,
 				broker_tester.RequestBody{
@@ -168,7 +174,10 @@ var _ = Describe("Broker API", func() {
 
 	Describe("Deprovision", func() {
 		It("accepts a deprovision request", func() {
-			fakeProvider.DeprovisionReturns("operationData", true, nil)
+			fakeProvider.DeprovisionReturns(&domain.DeprovisionServiceSpec{
+				OperationData: "operationData",
+				IsAsync:       true,
+			}, nil)
 			res := brokerTester.Deprovision(instanceID, service1, plan1, true)
 			Expect(res.Code).To(Equal(http.StatusAccepted))
 
@@ -183,7 +192,7 @@ var _ = Describe("Broker API", func() {
 		})
 
 		It("responds with an internal server error if the provider errors", func() {
-			fakeProvider.DeprovisionReturns("", true, errors.New("some deprovisioning error"))
+			fakeProvider.DeprovisionReturns(nil, errors.New("some deprovisioning error"))
 			res := brokerTester.Deprovision(instanceID, service1, plan1, true)
 			Expect(res.Code).To(Equal(http.StatusInternalServerError))
 		})
@@ -206,7 +215,7 @@ var _ = Describe("Broker API", func() {
 		})
 
 		It("creates a binding", func() {
-			fakeProvider.BindReturns(domain.Binding{Credentials: "secrets"}, nil)
+			fakeProvider.BindReturns(&domain.Binding{Credentials: "secrets"}, nil)
 			res := brokerTester.Bind(
 				instanceID,
 				bindingID,
@@ -230,7 +239,7 @@ var _ = Describe("Broker API", func() {
 		})
 
 		It("responds with an internal server error if the provider errors", func() {
-			fakeProvider.BindReturns(domain.Binding{}, errors.New("some binding error"))
+			fakeProvider.BindReturns(nil, errors.New("some binding error"))
 			res := brokerTester.Bind(
 				instanceID,
 				bindingID,
@@ -253,6 +262,9 @@ var _ = Describe("Broker API", func() {
 		})
 
 		It("unbinds", func() {
+			fakeProvider.UnbindReturns(&domain.UnbindSpec{
+				OperationData: "operation data",
+			}, nil)
 			res := brokerTester.Unbind(
 				instanceID,
 				service1,
@@ -264,7 +276,7 @@ var _ = Describe("Broker API", func() {
 		})
 
 		It("responds with an internal server error if the provider errors", func() {
-			fakeProvider.UnbindReturns(domain.UnbindSpec{IsAsync: true}, errors.New("some unbinding error"))
+			fakeProvider.UnbindReturns(nil, errors.New("some unbinding error"))
 			res := brokerTester.Unbind(
 				instanceID,
 				service1,
@@ -278,7 +290,10 @@ var _ = Describe("Broker API", func() {
 
 	Describe("Update", func() {
 		It("accepts an update request", func() {
-			fakeProvider.UpdateReturns("operationData", true, nil)
+			fakeProvider.UpdateReturns(&domain.UpdateServiceSpec{
+				OperationData: "operationData",
+				IsAsync:       true,
+			}, nil)
 			res := brokerTester.Update(
 				instanceID,
 				broker_tester.RequestBody{
@@ -303,7 +318,7 @@ var _ = Describe("Broker API", func() {
 		})
 
 		It("responds with an internal server error if the provider errors", func() {
-			fakeProvider.UpdateReturns("", true, errors.New("some update error"))
+			fakeProvider.UpdateReturns(nil, errors.New("some update error"))
 			res := brokerTester.Update(
 				instanceID,
 				broker_tester.RequestBody{
@@ -336,7 +351,10 @@ var _ = Describe("Broker API", func() {
 
 	Describe("LastOperation", func() {
 		It("provides the state of the operation", func() {
-			fakeProvider.LastOperationReturns(brokerapi.Succeeded, "description", nil)
+			fakeProvider.LastOperationReturns(&domain.LastOperation{
+				State:       brokerapi.Succeeded,
+				Description: "description",
+			}, nil)
 			res := brokerTester.LastOperation(instanceID, "", "", "")
 			Expect(res.Code).To(Equal(http.StatusOK))
 
@@ -353,7 +371,7 @@ var _ = Describe("Broker API", func() {
 
 		It("responds with an internal server error if the provider errors", func() {
 			lastOperationError := errors.New("some last operation error")
-			fakeProvider.LastOperationReturns(domain.InProgress, "", lastOperationError)
+			fakeProvider.LastOperationReturns(nil, lastOperationError)
 			res := brokerTester.LastOperation(instanceID, "", "", "")
 			Expect(res.Code).To(Equal(http.StatusInternalServerError))
 

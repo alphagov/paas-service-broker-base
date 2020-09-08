@@ -3,11 +3,18 @@ package broker
 import (
 	"context"
 	"sync"
+	"time"
 
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/locket"
 	locket_models "code.cloudfoundry.org/locket/models"
 	"google.golang.org/grpc"
+)
+
+var (
+	// DefaultLocketRetryInterval is the time between retries while waiting
+	// for successful locket response
+	DefaultLocketRetryInterval = time.Second * 1
 )
 
 type LocketConfig struct {
@@ -16,6 +23,7 @@ type LocketConfig struct {
 	ClientCertFile string `json:"client_cert_file"`
 	ClientKeyFile  string `json:"client_key_file"`
 	SkipVerify     bool
+	RetryInterval  time.Duration
 }
 
 type ServiceLock struct {

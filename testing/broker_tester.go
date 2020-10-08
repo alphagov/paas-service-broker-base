@@ -62,16 +62,18 @@ func (bt BrokerTester) Deprovision(instanceID, serviceID, planID string, async b
 	)
 }
 
-func (bt BrokerTester) Bind(instanceID, bindingID string, body RequestBody, asyncAllowed bool) *httptest.ResponseRecorder {
+func (bt BrokerTester) Bind(instanceID, bindingID string, body RequestBody, async bool) *httptest.ResponseRecorder {
 	bodyJSON, _ := json.Marshal(body)
 	return bt.Put(
 		fmt.Sprintf("/v2/service_instances/%s/service_bindings/%s", instanceID, bindingID),
 		bytes.NewBuffer(bodyJSON),
-		url.Values{},
+		url.Values{
+			"accepts_incomplete": []string{strconv.FormatBool(async)},
+		},
 	)
 }
 
-func (bt BrokerTester) Unbind(instanceID, serviceID, planID, bindingID string, asyncAllowed bool) *httptest.ResponseRecorder {
+func (bt BrokerTester) Unbind(instanceID, serviceID, planID, bindingID string, async bool) *httptest.ResponseRecorder {
 	return bt.Delete(
 		fmt.Sprintf(
 			"/v2/service_instances/%s/service_bindings/%s",
@@ -80,8 +82,9 @@ func (bt BrokerTester) Unbind(instanceID, serviceID, planID, bindingID string, a
 		),
 		nil,
 		url.Values{
-			"service_id": []string{serviceID},
-			"plan_id":    []string{planID},
+			"service_id":         []string{serviceID},
+			"plan_id":            []string{planID},
+			"accepts_incomplete": []string{strconv.FormatBool(async)},
 		},
 	)
 }

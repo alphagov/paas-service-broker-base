@@ -154,6 +154,21 @@ var _ = Describe("Config", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(config.API.LogLevel).To(Equal(DefaultLogLevel))
 		})
+
+		It("sets a default context_timeout_seconds", func() {
+			configSource = `
+				{
+					"basic_auth_username":"username",
+					"basic_auth_password":"1234",
+					"port": "8080",
+					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]},
+					"locket": {"address": "my.locker.server"}
+				}
+			`
+			config, err := NewConfig(strings.NewReader(configSource))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(config.API.ContextTimeout()).To(Equal(DefaultContextTimeout))
+		})
 	})
 
 	Describe("Catalog", func() {

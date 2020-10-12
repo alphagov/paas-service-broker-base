@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"reflect"
 	"strings"
+	"time"
 
 	"code.cloudfoundry.org/lager"
 	"github.com/pivotal-cf/brokerapi/domain"
@@ -89,12 +90,13 @@ func (c Config) Validate() error {
 }
 
 type API struct {
-	BasicAuthUsername string `json:"basic_auth_username"`
-	BasicAuthPassword string `json:"basic_auth_password"`
-	Port              string `json:"port"`
-	LogLevel          string `json:"log_level"`
-	LagerLogLevel     lager.LogLevel
-	Locket            *LocketConfig `json:"locket"`
+	BasicAuthUsername     string `json:"basic_auth_username"`
+	BasicAuthPassword     string `json:"basic_auth_password"`
+	Port                  string `json:"port"`
+	LogLevel              string `json:"log_level"`
+	LagerLogLevel         lager.LogLevel
+	Locket                *LocketConfig `json:"locket"`
+	ContextTimeoutSeconds int           `json:"context_timeout_seconds"`
 }
 
 func (api API) ConvertLogLevel() (lager.LogLevel, error) {
@@ -109,6 +111,13 @@ func (api API) ConvertLogLevel() (lager.LogLevel, error) {
 		return lager.DEBUG, fmt.Errorf("Config error: log level %s does not map to a Lager log level", api.LogLevel)
 	}
 	return logLevel, nil
+}
+
+func (api API) ContextTimeout() time.Duration {
+	if api.ContextTimeoutSeconds == 0 {
+		return DefaultContextTimeout
+	}
+	return time.Duration(api.ContextTimeoutSeconds) * time.Second
 }
 
 type Catalog struct {

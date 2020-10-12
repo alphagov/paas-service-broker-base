@@ -25,7 +25,7 @@ var (
 
 var (
 	// DefaultContextTimeout is the default timeout in which broker requests
-	// (and therefore Provider implementations) should return within
+	// (and therefore Provider implementations) should return
 	DefaultContextTimeout = time.Second * 60
 )
 
@@ -99,7 +99,7 @@ func (b *Broker) Provision(
 		return domain.ProvisionedServiceSpec{}, err
 	}
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, b.config.API.ContextTimeout())
 	defer cancelFunc()
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
@@ -157,7 +157,7 @@ func (b *Broker) Deprovision(
 		return domain.DeprovisionServiceSpec{}, brokerapi.ErrAsyncRequired
 	}
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, b.config.API.ContextTimeout())
 	defer cancelFunc()
 
 	service, err := findServiceByID(b.config.Catalog, details.ServiceID)
@@ -221,7 +221,7 @@ func (b *Broker) Bind(
 		"details":     details,
 	})
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, b.config.API.ContextTimeout())
 	defer cancelFunc()
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
@@ -274,7 +274,7 @@ func (b *Broker) Unbind(
 		"details":     details,
 	})
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, b.config.API.ContextTimeout())
 	defer cancelFunc()
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
@@ -324,7 +324,7 @@ func (b *Broker) GetBinding(
 		"binding-id":  bindingID,
 	})
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, b.config.API.ContextTimeout())
 	defer cancelFunc()
 
 	data := provider.GetBindData{
@@ -382,7 +382,7 @@ func (b *Broker) Update(
 		return domain.UpdateServiceSpec{}, err
 	}
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, b.config.API.ContextTimeout())
 	defer cancelFunc()
 
 	lock, err := b.ObtainServiceLock(providerCtx, instanceID, locketMaxTTL)
@@ -429,7 +429,7 @@ func (b *Broker) LastOperation(
 		"poll-details": pollDetails,
 	})
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, b.config.API.ContextTimeout())
 	defer cancelFunc()
 
 	lastOperationData := provider.LastOperationData{
@@ -469,7 +469,7 @@ func (b *Broker) LastBindingOperation(
 		"poll-details": pollDetails,
 	})
 
-	providerCtx, cancelFunc := context.WithTimeout(ctx, DefaultContextTimeout)
+	providerCtx, cancelFunc := context.WithTimeout(ctx, b.config.API.ContextTimeout())
 	defer cancelFunc()
 
 	lastOperationData := provider.LastBindingOperationData{

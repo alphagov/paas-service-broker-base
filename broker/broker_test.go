@@ -12,7 +12,6 @@ import (
 	. "github.com/alphagov/paas-service-broker-base/broker"
 	"github.com/alphagov/paas-service-broker-base/provider"
 	"github.com/alphagov/paas-service-broker-base/provider/fakes"
-	"github.com/pivotal-cf/brokerapi"
 	"github.com/pivotal-cf/brokerapi/domain"
 	"github.com/pivotal-cf/brokerapi/domain/apiresponses"
 	"google.golang.org/grpc/codes"
@@ -106,7 +105,7 @@ var _ = Describe("Broker", func() {
 
 			_, err = b.Provision(context.Background(), instanceID, validProvisionDetails, asyncAllowed)
 
-			Expect(err).To(Equal(brokerapi.ErrAsyncRequired))
+			Expect(err).To(Equal(apiresponses.ErrAsyncRequired))
 		})
 
 		It("errors if the service is not in the catalog", func() {
@@ -178,7 +177,7 @@ var _ = Describe("Broker", func() {
 		})
 
 		Context("when provider does not implement async", func() {
-			It("does not allow returning async true", func () {
+			It("does not allow returning async true", func() {
 				fakeProvider := &fakes.FakeProvisioner{}
 				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 				Expect(err).NotTo(HaveOccurred())
@@ -192,8 +191,8 @@ var _ = Describe("Broker", func() {
 			})
 		})
 
-		Context("when provider does not implement provisioning", func () {
-			It("will return error", func () {
+		Context("when provider does not implement provisioning", func() {
+			It("will return error", func() {
 				var fakeProvider interface{}
 				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 				Expect(err).ToNot(HaveOccurred())
@@ -330,7 +329,7 @@ var _ = Describe("Broker", func() {
 
 			_, err = b.Deprovision(context.Background(), instanceID, validDeprovisionDetails, asyncAllowed)
 
-			Expect(err).To(Equal(brokerapi.ErrAsyncRequired))
+			Expect(err).To(Equal(apiresponses.ErrAsyncRequired))
 		})
 
 		It("errors if the service is not in the catalog", func() {
@@ -402,7 +401,7 @@ var _ = Describe("Broker", func() {
 		})
 
 		Context("when provider does not implement async", func() {
-			It("does not allow returning async true", func () {
+			It("does not allow returning async true", func() {
 				fakeProvider := &fakes.FakeProvisioner{}
 				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 				Expect(err).NotTo(HaveOccurred())
@@ -416,8 +415,8 @@ var _ = Describe("Broker", func() {
 			})
 		})
 
-		Context("when provider does not implement provisioning", func () {
-			It("will return error", func () {
+		Context("when provider does not implement provisioning", func() {
+			It("will return error", func() {
 				var fakeProvider interface{}
 				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 				Expect(err).ToNot(HaveOccurred())
@@ -539,7 +538,7 @@ var _ = Describe("Broker", func() {
 		})
 
 		Context("when provider does not implement async binding", func() {
-			It("does not allow returning async true", func () {
+			It("does not allow returning async true", func() {
 				fakeProvider := &fakes.FakeBinder{}
 				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 				Expect(err).NotTo(HaveOccurred())
@@ -553,8 +552,8 @@ var _ = Describe("Broker", func() {
 			})
 		})
 
-		Context("when provider does not implement binding", func () {
-			It("will return error", func () {
+		Context("when provider does not implement binding", func() {
+			It("will return error", func() {
 				var fakeProvider interface{}
 				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 				Expect(err).ToNot(HaveOccurred())
@@ -664,8 +663,8 @@ var _ = Describe("Broker", func() {
 			Expect(err).To(MatchError("ERROR BINDING"))
 		})
 
-		Context("when provider does not implement async binding", func () {
-			It("will return error", func () {
+		Context("when provider does not implement async binding", func() {
+			It("will return error", func() {
 				var fakeProvider interface{}
 				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 				Expect(err).ToNot(HaveOccurred())
@@ -775,9 +774,8 @@ var _ = Describe("Broker", func() {
 			Expect(err).To(MatchError("ERROR UNBINDING"))
 		})
 
-
 		Context("when provider does not implement async binding", func() {
-			It("does not allow returning async true", func () {
+			It("does not allow returning async true", func() {
 				fakeProvider := &fakes.FakeBinder{}
 				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 				Expect(err).NotTo(HaveOccurred())
@@ -791,8 +789,8 @@ var _ = Describe("Broker", func() {
 			})
 		})
 
-		Context("when provider does not implement binding", func () {
-			It("will return error", func () {
+		Context("when provider does not implement binding", func() {
+			It("will return error", func() {
 				var fakeProvider interface{}
 				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 				Expect(err).ToNot(HaveOccurred())
@@ -879,7 +877,7 @@ var _ = Describe("Broker", func() {
 					Expect(updatePlanDetails.PlanID).NotTo(Equal(updatePlanDetails.PreviousValues.PlanID))
 					_, err = b.Update(context.Background(), instanceID, updatePlanDetails, true)
 
-					Expect(err).To(Equal(brokerapi.ErrPlanChangeNotSupported))
+					Expect(err).To(Equal(apiresponses.ErrPlanChangeNotSupported))
 				})
 
 				It("accepts the update request when just changing parameters", func() {
@@ -915,7 +913,7 @@ var _ = Describe("Broker", func() {
 
 			_, err = b.Update(context.Background(), instanceID, updatePlanDetails, asyncAllowed)
 
-			Expect(err).To(Equal(brokerapi.ErrAsyncRequired))
+			Expect(err).To(Equal(apiresponses.ErrAsyncRequired))
 		})
 
 		It("errors if the service is not in the catalog", func() {
@@ -986,8 +984,8 @@ var _ = Describe("Broker", func() {
 			Expect(err).To(MatchError("ERROR UPDATING"))
 		})
 
-		Context("when provider does not implement updating", func () {
-			It("will return error", func () {
+		Context("when provider does not implement updating", func() {
+			It("will return error", func() {
 				var fakeProvider interface{}
 				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 				Expect(err).ToNot(HaveOccurred())
@@ -1095,8 +1093,8 @@ var _ = Describe("Broker", func() {
 			Expect(err).To(MatchError("ERROR LAST OPERATION"))
 		})
 
-		Context("when provider does not implement last operation", func () {
-			It("will return error", func () {
+		Context("when provider does not implement last operation", func() {
+			It("will return error", func() {
 				var fakeProvider interface{}
 				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 				Expect(err).ToNot(HaveOccurred())
@@ -1125,13 +1123,13 @@ var _ = Describe("Broker", func() {
 			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 			Expect(err).NotTo(HaveOccurred())
 			fakeProvider.LastOperationReturns(&domain.LastOperation{
-				State:       brokerapi.Succeeded,
+				State:       domain.Succeeded,
 				Description: "Provision successful",
 			}, nil)
 
 			Expect(b.LastOperation(context.Background(), instanceID, pollDetails)).
 				To(Equal(domain.LastOperation{
-					State:       brokerapi.Succeeded,
+					State:       domain.Succeeded,
 					Description: "Provision successful",
 				}))
 		})
@@ -1207,8 +1205,8 @@ var _ = Describe("Broker", func() {
 			Expect(err).To(MatchError("ERROR LAST OPERATION"))
 		})
 
-		Context("when provider does not implement last operation", func () {
-			It("will return error", func () {
+		Context("when provider does not implement last operation", func() {
+			It("will return error", func() {
 				var fakeProvider interface{}
 				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 				Expect(err).ToNot(HaveOccurred())
@@ -1237,13 +1235,13 @@ var _ = Describe("Broker", func() {
 			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 			Expect(err).NotTo(HaveOccurred())
 			fakeProvider.LastBindingOperationReturns(&domain.LastOperation{
-				State:       brokerapi.Succeeded,
+				State:       domain.Succeeded,
 				Description: "Provision successful",
 			}, nil)
 
 			Expect(b.LastBindingOperation(context.Background(), instanceID, bindingID, pollDetails)).
 				To(Equal(domain.LastOperation{
-					State:       brokerapi.Succeeded,
+					State:       domain.Succeeded,
 					Description: "Provision successful",
 				}))
 		})

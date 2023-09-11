@@ -85,6 +85,22 @@ var _ = Describe("Config", func() {
 			_, err := NewConfig(strings.NewReader(configSource))
 			Expect(err).ToNot(HaveOccurred())
 		})
+
+		It("requires all lts fields if tls config provided", func() {
+			configSource = `
+				{
+					"basic_auth_username":"username",
+					"basic_auth_password":"1234",
+					"port": "8080",
+					"log_level": "debug",
+					"catalog": {"services": [{"name": "service1", "plans": [{"name": "plan1"}]}]},
+					"tls": {}
+				}
+			`
+			_, err := NewConfig(strings.NewReader(configSource))
+			Expect(err).To(MatchError("Config error: TLS certificate required"))
+
+		})
 	})
 
 	Describe("Log levels", func() {

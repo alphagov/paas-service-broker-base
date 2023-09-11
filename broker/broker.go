@@ -12,8 +12,8 @@ import (
 	"code.cloudfoundry.org/lager"
 	locket_models "code.cloudfoundry.org/locket/models"
 	"github.com/alphagov/paas-service-broker-base/provider"
-	"github.com/pivotal-cf/brokerapi"
 	"github.com/pivotal-cf/brokerapi/domain"
+	"github.com/pivotal-cf/brokerapi/domain/apiresponses"
 )
 
 var (
@@ -86,7 +86,7 @@ func (b *Broker) Provision(
 	})
 
 	if !asyncAllowed {
-		return domain.ProvisionedServiceSpec{}, brokerapi.ErrAsyncRequired
+		return domain.ProvisionedServiceSpec{}, apiresponses.ErrAsyncRequired
 	}
 
 	service, err := findServiceByID(b.config.Catalog, details.ServiceID)
@@ -154,7 +154,7 @@ func (b *Broker) Deprovision(
 	})
 
 	if !asyncAllowed {
-		return domain.DeprovisionServiceSpec{}, brokerapi.ErrAsyncRequired
+		return domain.DeprovisionServiceSpec{}, apiresponses.ErrAsyncRequired
 	}
 
 	providerCtx, cancelFunc := context.WithTimeout(ctx, b.config.API.ContextTimeout())
@@ -365,7 +365,7 @@ func (b *Broker) Update(
 	})
 
 	if !asyncAllowed {
-		return domain.UpdateServiceSpec{}, brokerapi.ErrAsyncRequired
+		return domain.UpdateServiceSpec{}, apiresponses.ErrAsyncRequired
 	}
 
 	service, err := findServiceByID(b.config.Catalog, details.ServiceID)
@@ -374,7 +374,7 @@ func (b *Broker) Update(
 	}
 
 	if !service.PlanUpdatable && details.PlanID != details.PreviousValues.PlanID {
-		return domain.UpdateServiceSpec{}, brokerapi.ErrPlanChangeNotSupported
+		return domain.UpdateServiceSpec{}, apiresponses.ErrPlanChangeNotSupported
 	}
 
 	plan, err := findPlanByID(service, details.PlanID)

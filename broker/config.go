@@ -16,6 +16,7 @@ import (
 
 const (
 	DefaultPort     = "3000"
+	DefaultHost     = "0.0.0.0"
 	DefaultLogLevel = "debug"
 )
 
@@ -37,10 +38,13 @@ func NewConfig(source io.Reader) (Config, error) {
 		return config, err
 	}
 	if api.Port == "" {
-		api.Port = "3000"
+		api.Port = DefaultPort
 	}
 	if api.LogLevel == "" {
-		api.LogLevel = "debug"
+		api.LogLevel = DefaultLogLevel
+	}
+	if api.Host == "" {
+		api.Host = DefaultHost
 	}
 	api.LagerLogLevel, err = api.ConvertLogLevel()
 	if err != nil {
@@ -86,17 +90,25 @@ func (c Config) Validate() error {
 			return fmt.Errorf("Config error: locket address required")
 		}
 	}
+	if c.API.TLS != nil {
+		tlsValidation := c.API.TLS.validate()
+		if tlsValidation != nil {
+			return tlsValidation
+		}
+	}
 	return nil
 }
 
 type API struct {
-	BasicAuthUsername     string `json:"basic_auth_username"`
 	BasicAuthPassword     string `json:"basic_auth_password"`
-	Port                  string `json:"port"`
-	LogLevel              string `json:"log_level"`
+	BasicAuthUsername     string `json:"basic_auth_username"`
+	ContextTimeoutSeconds int    `json:"context_timeout_seconds"`
+	Host                  string `json:"host"`
 	LagerLogLevel         lager.LogLevel
 	Locket                *LocketConfig `json:"locket"`
-	ContextTimeoutSeconds int           `json:"context_timeout_seconds"`
+	LogLevel              string        `json:"log_level"`
+	Port                  string        `json:"port"`
+	TLS                   *TLSConfig    `json:"tls"`
 }
 
 func (api API) ConvertLogLevel() (lager.LogLevel, error) {
@@ -118,6 +130,10 @@ func (api API) ContextTimeout() time.Duration {
 		return DefaultContextTimeout
 	}
 	return time.Duration(api.ContextTimeoutSeconds) * time.Second
+}
+
+func (api API) TLSEnabled() bool {
+	return api.TLS != nil
 }
 
 type Catalog struct {

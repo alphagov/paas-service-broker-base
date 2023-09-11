@@ -352,7 +352,7 @@ var _ = Describe("Broker API", func() {
 	Describe("LastOperation", func() {
 		It("provides the state of the operation", func() {
 			fakeProvider.LastOperationReturns(&domain.LastOperation{
-				State:       brokerapi.Succeeded,
+				State:       domain.Succeeded,
 				Description: "description",
 			}, nil)
 			res := brokerTester.LastOperation(instanceID, "", "", "")
@@ -363,7 +363,7 @@ var _ = Describe("Broker API", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			expectedResponse := apiresponses.LastOperationResponse{
-				State:       brokerapi.Succeeded,
+				State:       domain.Succeeded,
 				Description: "description",
 			}
 			Expect(lastOperationResponse).To(Equal(expectedResponse))

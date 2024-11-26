@@ -1,7 +1,7 @@
 module github.com/alphagov/paas-service-broker-base
 
 require (
-	code.cloudfoundry.org/lager v2.0.0+incompatible
+	code.cloudfoundry.org/lager/v3 v3.16.0
 	code.cloudfoundry.org/locket v0.0.0-20241029002438-07ee8ada566a
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.2.3
 	github.com/onsi/ginkgo v1.16.5
@@ -16,7 +16,7 @@ require (
 
 require (
 	code.cloudfoundry.org/inigo v0.0.0-20200810212058-8c6981a34177 // indirect
-	code.cloudfoundry.org/lager/v3 v3.16.0 // indirect
+	code.cloudfoundry.org/lager v2.0.0+incompatible // indirect
 	code.cloudfoundry.org/tlsconfig v0.10.0 // indirect
 	github.com/drewolson/testflight v1.0.0 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect

@@ -8,7 +8,7 @@ import (
 	"path"
 	"time"
 
-	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/lager/v3"
 	. "github.com/alphagov/paas-service-broker-base/broker"
 	"github.com/alphagov/paas-service-broker-base/provider/fakes"
 	broker_tester "github.com/alphagov/paas-service-broker-base/testing"

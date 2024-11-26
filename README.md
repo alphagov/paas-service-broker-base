@@ -32,7 +32,7 @@ import (
 	"net/http"
 	"os"
 	
-	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/lager/v3"
 	"github.com/alphagov/paas-my-service-broker/"
 	"github.com/alphagov/paas-service-broker-base/broker"
 )

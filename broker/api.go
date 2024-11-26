@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"code.cloudfoundry.org/lager/v3"
-	"github.com/pivotal-cf/brokerapi"
-	"github.com/pivotal-cf/brokerapi/domain"
+	"github.com/pivotal-cf/brokerapi/v10"
+	"github.com/pivotal-cf/brokerapi/v10/domain"
 )
 
 func NewAPI(broker domain.ServiceBroker, logger lager.Logger, config Config) http.Handler {

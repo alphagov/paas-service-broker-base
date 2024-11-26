@@ -79,7 +79,7 @@ import (
 	"github.com/alphagov/paas-service-broker-base/broker"
 	brokertesting "github.com/alphagov/paas-service-broker-base/testing"
 	
-	"github.com/pivotal-cf/brokerapi"
+	"github.com/pivotal-cf/brokerapi/v10"
 )
 
 const ASYNC_ALLOWED = true

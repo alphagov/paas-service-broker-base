@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/alphagov/paas-service-broker-base/provider"
-	"github.com/pivotal-cf/brokerapi/domain"
+	"github.com/pivotal-cf/brokerapi/v10/domain"
 )
 
 type FakeAsyncProvider struct {

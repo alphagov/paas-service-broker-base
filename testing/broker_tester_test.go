@@ -5,7 +5,7 @@ import (
 	"github.com/alphagov/paas-service-broker-base/testing/fakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/pivotal-cf/brokerapi"
+	"github.com/pivotal-cf/brokerapi/v10"
 )
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -o fakes/fake_http_handler.go net/http.Handler

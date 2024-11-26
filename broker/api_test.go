@@ -8,13 +8,13 @@ import (
 	"path"
 	"time"
 
-	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/lager/v3"
 	. "github.com/alphagov/paas-service-broker-base/broker"
 	"github.com/alphagov/paas-service-broker-base/provider/fakes"
 	broker_tester "github.com/alphagov/paas-service-broker-base/testing"
-	"github.com/pivotal-cf/brokerapi"
-	"github.com/pivotal-cf/brokerapi/domain"
-	"github.com/pivotal-cf/brokerapi/domain/apiresponses"
+	"github.com/pivotal-cf/brokerapi/v10"
+	"github.com/pivotal-cf/brokerapi/v10/domain"
+	"github.com/pivotal-cf/brokerapi/v10/domain/apiresponses"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

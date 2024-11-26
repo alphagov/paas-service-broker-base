@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/lager/v3"
 	. "github.com/alphagov/paas-service-broker-base/broker"
 	"github.com/alphagov/paas-service-broker-base/provider"
 	"github.com/alphagov/paas-service-broker-base/provider/fakes"
-	"github.com/pivotal-cf/brokerapi/domain"
-	"github.com/pivotal-cf/brokerapi/domain/apiresponses"
+	"github.com/pivotal-cf/brokerapi/v10/domain"
+	"github.com/pivotal-cf/brokerapi/v10/domain/apiresponses"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -616,6 +616,7 @@ var _ = Describe("Broker", func() {
 	Describe("GetBinding", func() {
 		var (
 			bindingID string
+			details domain.FetchBindingDetails
 		)
 
 		BeforeEach(func() {
@@ -629,7 +630,7 @@ var _ = Describe("Broker", func() {
 			b, err := New(validConfig, &fakes.FakeAsyncProvider{}, logger)
 			Expect(err).NotTo(HaveOccurred())
 
-			_, _ = b.GetBinding(context.Background(), instanceID, bindingID)
+			_, _ = b.GetBinding(context.Background(), instanceID, bindingID, details)
 
 			Expect(log).To(gbytes.Say("get-binding-start"))
 		})
@@ -639,7 +640,7 @@ var _ = Describe("Broker", func() {
 			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 			Expect(err).NotTo(HaveOccurred())
 
-			_, _ = b.GetBinding(context.Background(), instanceID, bindingID)
+			_, _ = b.GetBinding(context.Background(), instanceID, bindingID, details)
 
 			Expect(fakeProvider.GetBindingCallCount()).To(Equal(1))
 			_, data := fakeProvider.GetBindingArgsForCall(0)
@@ -658,7 +659,7 @@ var _ = Describe("Broker", func() {
 			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 			Expect(err).NotTo(HaveOccurred())
 
-			_, err = b.GetBinding(context.Background(), instanceID, bindingID)
+			_, err = b.GetBinding(context.Background(), instanceID, bindingID, details)
 
 			Expect(err).To(MatchError("ERROR BINDING"))
 		})
@@ -669,7 +670,7 @@ var _ = Describe("Broker", func() {
 				b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 				Expect(err).ToNot(HaveOccurred())
 
-				_, err = b.GetBinding(context.Background(), instanceID, bindingID)
+				_, err = b.GetBinding(context.Background(), instanceID, bindingID, details)
 				Expect(err).To(MatchError(ErrNotImplemented))
 			})
 		})
@@ -683,7 +684,7 @@ var _ = Describe("Broker", func() {
 			b, err := New(validConfig, fakeProvider, logger)
 			Expect(err).NotTo(HaveOccurred())
 
-			_, _ = b.GetBinding(context.Background(), instanceID, bindingID)
+			_, _ = b.GetBinding(context.Background(), instanceID, bindingID, details)
 
 			Expect(log).To(gbytes.Say("get-binding-success"))
 		})
@@ -696,7 +697,7 @@ var _ = Describe("Broker", func() {
 			b, err := New(validConfig, fakeProvider, lager.NewLogger("broker"))
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(b.GetBinding(context.Background(), instanceID, bindingID)).To(Equal(domain.GetBindingSpec{
+			Expect(b.GetBinding(context.Background(), instanceID, bindingID, details)).To(Equal(domain.GetBindingSpec{
 				Credentials: "some-value-of-interface{}-type",
 			}))
 		})
